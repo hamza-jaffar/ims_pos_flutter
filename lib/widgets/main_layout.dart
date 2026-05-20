@@ -39,7 +39,7 @@ class _MainLayoutState extends State<MainLayout> {
 
   void _updateRoute(String route) {
     if (route == _activeRoute) return;
-    final routeWidget = AppRoutes.getContent(route);
+    final routeWidget = AppRoutes.getContent(route, onRouteSelected: _updateRoute);
     if (routeWidget == null) return;
 
     setState(() {

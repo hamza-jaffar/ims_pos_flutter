@@ -29,8 +29,16 @@ const sidebarLinks = [
       ),
       AppSidebarLink(icon: Icons.warning_amber, name: 'Expired Products'),
       AppSidebarLink(icon: Icons.trending_down, name: 'Low Stocks'),
-      AppSidebarLink(icon: Icons.category, name: 'Category'),
-      AppSidebarLink(icon: Icons.account_tree_outlined, name: 'Sub Category'),
+      AppSidebarLink(
+        icon: Icons.category,
+        name: 'Category',
+        route: "/categories",
+      ),
+      // AppSidebarLink(
+      //   icon: Icons.account_tree_outlined,
+      //   name: 'Sub Category',
+      //   route: "/category/create",
+      // ),
       AppSidebarLink(icon: Icons.branding_watermark, name: 'Brands'),
       AppSidebarLink(icon: Icons.straighten, name: 'Units'),
     ],

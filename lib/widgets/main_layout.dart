@@ -29,7 +29,8 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   void didUpdateWidget(covariant MainLayout oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.child != widget.child || oldWidget.activeRoute != widget.activeRoute) {
+    if (oldWidget.child != widget.child ||
+        oldWidget.activeRoute != widget.activeRoute) {
       setState(() {
         _activeChild = widget.child;
         _activeRoute = widget.activeRoute;
@@ -39,7 +40,10 @@ class _MainLayoutState extends State<MainLayout> {
 
   void _updateRoute(String route) {
     if (route == _activeRoute) return;
-    final routeWidget = AppRoutes.getContent(route, onRouteSelected: _updateRoute);
+    final routeWidget = AppRoutes.getContent(
+      route,
+      onRouteSelected: _updateRoute,
+    );
     if (routeWidget == null) return;
 
     setState(() {
@@ -85,9 +89,20 @@ class _MainLayoutState extends State<MainLayout> {
               children: [
                 AppHeader(scaffoldKey: _scaffoldKey, isDesktop: isDesktop),
                 Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(24.0),
-                    child: _activeChild,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SingleChildScrollView(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: constraints.maxHeight,
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.all(24.0),
+                            child: _activeChild,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],

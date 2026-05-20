@@ -18,6 +18,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
   List<Category> _categories = [];
   List<Category> _filtered = [];
   bool _isLoading = true;
+  final Set<int> _hoveredRows = {};
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -225,19 +226,18 @@ class _CategoryScreenState extends State<CategoryScreen> {
         const SizedBox(height: 16),
 
         // Table
-        Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _filtered.isEmpty
-                ? _buildEmpty()
-                : _buildTable(),
+        Container(
+          constraints: BoxConstraints(minHeight: 120),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
           ),
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _filtered.isEmpty
+              ? _buildEmpty()
+              : _buildTable(),
         ),
       ],
     );
@@ -300,15 +300,15 @@ class _CategoryScreenState extends State<CategoryScreen> {
           ),
         ),
         // Rows
-        Expanded(
-          child: RefreshIndicator(
-            onRefresh: _loadCategories,
-            child: ListView.separated(
-              itemCount: _filtered.length,
-              separatorBuilder: (_, __) =>
-                  Divider(height: 1, color: AppColors.border),
-              itemBuilder: (_, index) => _buildRow(_filtered[index]),
-            ),
+        RefreshIndicator(
+          onRefresh: _loadCategories,
+          child: ListView.separated(
+            physics: const NeverScrollableScrollPhysics(),
+            shrinkWrap: true,
+            itemCount: _filtered.length,
+            separatorBuilder: (_, __) =>
+                Divider(height: 1, color: AppColors.border),
+            itemBuilder: (_, index) => _buildRow(_filtered[index], index),
           ),
         ),
       ],
@@ -326,95 +326,123 @@ class _CategoryScreenState extends State<CategoryScreen> {
     );
   }
 
-  Widget _buildRow(Category category) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: Text(
-              category.name,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: AppColors.textMain,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              category.code ?? '—',
-              style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          Expanded(
-            flex: 3,
-            child: Text(
-              category.description ?? '—',
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: category.isActive
-                    ? AppColors.successLight
-                    : AppColors.border,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                category.isActive ? 'Active' : 'Inactive',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: category.isActive
-                      ? AppColors.success
-                      : AppColors.textSecondary,
+  Widget _buildRow(Category category, int index) {
+    final isHovered = _hoveredRows.contains(index);
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hoveredRows.add(index)),
+      onExit: (_) => setState(() => _hoveredRows.remove(index)),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () {
+          if (category.id != null) {
+            widget.onRouteSelected('${AppRoutes.editCategory}/${category.id}');
+          }
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          color: isHovered ? AppColors.background.withAlpha(40) : Colors.white,
+          child: Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: Text(
+                  category.name,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textMain,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                textAlign: TextAlign.center,
               ),
-            ),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              category.createdAt != null
-                  ? '${category.createdAt!.day}/${category.createdAt!.month}/${category.createdAt!.year}'
-                  : '—',
-              style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
-            ),
-          ),
-          SizedBox(
-            width: 80,
-            child: Row(
-              children: [
-                _actionButton(
-                  icon: Icons.edit_outlined,
-                  color: AppColors.info,
-                  tooltip: 'Edit',
-                  onTap: () => widget.onRouteSelected(
-                    '${AppRoutes.editCategory}/${category.id}',
+              Expanded(
+                flex: 2,
+                child: Text(
+                  category.code ?? '—',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Expanded(
+                flex: 3,
+                child: Text(
+                  category.description ?? '—',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ),
+              Expanded(
+                flex: 1,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: category.isActive
+                        ? AppColors.successLight
+                        : AppColors.border,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    category.isActive ? 'Active' : 'Inactive',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: category.isActive
+                          ? AppColors.success
+                          : AppColors.textSecondary,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-                const SizedBox(width: 6),
-                _actionButton(
-                  icon: Icons.delete_outline,
-                  color: AppColors.danger,
-                  tooltip: 'Delete',
-                  onTap: () => _deleteCategory(category),
+              ),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  category.createdAt != null
+                      ? '${category.createdAt!.day}/${category.createdAt!.month}/${category.createdAt!.year}'
+                      : '—',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
-              ],
-            ),
+              ),
+              SizedBox(
+                width: 92,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    _actionButton(
+                      icon: Icons.edit_outlined,
+                      color: AppColors.info,
+                      tooltip: 'Edit',
+                      onTap: () => widget.onRouteSelected(
+                        '${AppRoutes.editCategory}/${category.id}',
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _actionButton(
+                      icon: Icons.delete_outline,
+                      color: AppColors.danger,
+                      tooltip: 'Delete',
+                      onTap: () => _deleteCategory(category),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -427,16 +455,19 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }) {
     return Tooltip(
       message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: Container(
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            color: color.withAlpha(20),
-            borderRadius: BorderRadius.circular(6),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withAlpha(20),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(icon, size: 18, color: color),
           ),
-          child: Icon(icon, size: 16, color: color),
         ),
       ),
     );

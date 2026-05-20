@@ -1,0 +1,1 @@
+enum SidebarLinkType { group, item }

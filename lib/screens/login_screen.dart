@@ -29,8 +29,6 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await AuthService.instance.initialize();
     } catch (_) {
-      // If DB initialization fails (for example on unsupported desktop targets),
-      // still allow the login screen to load and fallback to the default admin.
     } finally {
       if (mounted) {
         setState(() {
@@ -69,9 +67,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'Invalid email or password. Use admin@example.com / password123',
-            ),
+            content: Text('Invalid email or password'),
             backgroundColor: Color(0xFFEA5455),
           ),
         );

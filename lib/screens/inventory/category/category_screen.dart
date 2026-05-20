@@ -122,54 +122,101 @@ class _CategoryScreenState extends State<CategoryScreen> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
+    final bool isMobile = MediaQuery.of(context).size.width < 768;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header row
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Manage Categories',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textMain,
+        // Header row / Column
+        isMobile
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Manage Categories',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textMain,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${_categories.length} categories total',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
+                  const SizedBox(height: 2),
+                  Text(
+                    '${_categories.length} categories total',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            ElevatedButton.icon(
-              onPressed: () => widget.onRouteSelected(AppRoutes.createCategory),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text('Create Category'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () =>
+                          widget.onRouteSelected(AppRoutes.createCategory),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Create Category'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                        ),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Manage Categories',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textMain,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${_categories.length} categories total',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () =>
+                        widget.onRouteSelected(AppRoutes.createCategory),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('Create Category'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
         const SizedBox(height: 20),
 
         // Search bar
@@ -225,9 +272,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
         ),
         const SizedBox(height: 16),
 
-        // Table
+        // Table / Card List
         Container(
-          constraints: BoxConstraints(minHeight: 120),
+          constraints: const BoxConstraints(minHeight: 120),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
@@ -236,8 +283,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
               : _filtered.isEmpty
-              ? _buildEmpty()
-              : _buildTable(),
+                  ? _buildEmpty()
+                  : (isMobile ? _buildCardList() : _buildTable()),
         ),
       ],
     );
@@ -306,7 +353,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
             physics: const NeverScrollableScrollPhysics(),
             shrinkWrap: true,
             itemCount: _filtered.length,
-            separatorBuilder: (_, __) =>
+            separatorBuilder: (_, _) =>
                 Divider(height: 1, color: AppColors.border),
             itemBuilder: (_, index) => _buildRow(_filtered[index], index),
           ),
@@ -468,6 +515,147 @@ class _CategoryScreenState extends State<CategoryScreen> {
             ),
             child: Icon(icon, size: 18, color: color),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardList() {
+    return RefreshIndicator(
+      onRefresh: _loadCategories,
+      child: ListView.separated(
+        physics: const NeverScrollableScrollPhysics(),
+        shrinkWrap: true,
+        itemCount: _filtered.length,
+        separatorBuilder: (_, _) =>
+            Divider(height: 1, color: AppColors.border),
+        itemBuilder: (_, index) => _buildCardItem(_filtered[index]),
+      ),
+    );
+  }
+
+  Widget _buildCardItem(Category category) {
+    return InkWell(
+      onTap: () {
+        if (category.id != null) {
+          widget.onRouteSelected('${AppRoutes.editCategory}/${category.id}');
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    category.name,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textMain,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: category.isActive
+                        ? AppColors.successLight
+                        : AppColors.border,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    category.isActive ? 'Active' : 'Inactive',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: category.isActive
+                          ? AppColors.success
+                          : AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            if (category.code != null && category.code!.isNotEmpty) ...[
+              Row(
+                children: [
+                  Icon(
+                    Icons.tag,
+                    size: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    category.code!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
+            Text(
+              category.description ?? 'No description provided.',
+              style: TextStyle(
+                fontSize: 13,
+                color: category.description != null
+                    ? AppColors.textMain.withAlpha(200)
+                    : AppColors.textSecondary.withAlpha(160),
+                fontStyle: category.description != null
+                    ? FontStyle.normal
+                    : FontStyle.italic,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  category.createdAt != null
+                      ? 'Created: ${category.createdAt!.day}/${category.createdAt!.month}/${category.createdAt!.year}'
+                      : '',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                Row(
+                  children: [
+                    _actionButton(
+                      icon: Icons.edit_outlined,
+                      color: AppColors.info,
+                      tooltip: 'Edit',
+                      onTap: () => widget.onRouteSelected(
+                        '${AppRoutes.editCategory}/${category.id}',
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _actionButton(
+                      icon: Icons.delete_outline,
+                      color: AppColors.danger,
+                      tooltip: 'Delete',
+                      onTap: () => _deleteCategory(category),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );

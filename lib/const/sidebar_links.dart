@@ -8,19 +8,7 @@ const sidebarLinks = [
     name: 'Main',
     type: SidebarLinkType.group,
     children: [
-      AppSidebarLink(
-        icon: Icons.dashboard_outlined,
-        name: 'Dashboard',
-        children: [
-          AppSidebarLink(icon: Icons.circle, name: 'Admin Dashboard'),
-          AppSidebarLink(icon: Icons.circle, name: 'Admin Dashboard 2'),
-          AppSidebarLink(icon: Icons.circle, name: 'Sales Dashboard'),
-        ],
-      ),
-      AppSidebarLink(
-        icon: Icons.supervisor_account_outlined,
-        name: 'Super Admin',
-      ),
+      AppSidebarLink(icon: Icons.supervisor_account_outlined, name: 'Admin'),
     ],
   ),
 
@@ -29,8 +17,16 @@ const sidebarLinks = [
     name: 'Inventory',
     type: SidebarLinkType.group,
     children: [
-      AppSidebarLink(icon: Icons.inventory_2_outlined, name: 'Products'),
-      AppSidebarLink(icon: Icons.add, name: 'Create Product'),
+      AppSidebarLink(
+        icon: Icons.inventory_2_outlined,
+        name: 'Products',
+        route: "/products",
+      ),
+      AppSidebarLink(
+        icon: Icons.add,
+        name: 'Create Product',
+        route: "/products/create",
+      ),
       AppSidebarLink(icon: Icons.warning_amber, name: 'Expired Products'),
       AppSidebarLink(icon: Icons.trending_down, name: 'Low Stocks'),
       AppSidebarLink(icon: Icons.category, name: 'Category'),

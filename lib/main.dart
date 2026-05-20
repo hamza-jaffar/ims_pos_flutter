@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:ims_pos_system/app_routes.dart';
 import 'package:ims_pos_system/const/app_colors.dart';
 import 'package:ims_pos_system/const/meta_data.dart';
 import 'package:ims_pos_system/screens/login_screen.dart';
@@ -15,6 +16,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,
+      routes: AppRoutes.routes,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(

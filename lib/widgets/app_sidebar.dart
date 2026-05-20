@@ -7,11 +7,15 @@ import 'package:ims_pos_system/models/app_sidebar_link.dart';
 class AppSidebar extends StatefulWidget {
   final GlobalKey<ScaffoldState> scaffoldKey;
   final bool isDesktop;
+  final String activeRoute;
+  final ValueChanged<String> onRouteSelected;
 
   const AppSidebar({
     super.key,
     required this.scaffoldKey,
     required this.isDesktop,
+    required this.activeRoute,
+    required this.onRouteSelected,
   });
 
   @override
@@ -52,9 +56,12 @@ class _AppSidebarState extends State<AppSidebar> {
           Divider(height: 1, color: AppColors.border),
 
           Expanded(
-            child: ListView(
-              // padding: const EdgeInsets.symmetric(vertical: ),
-              children: sidebarLinks.map(_buildItemAtIndex).toList(),
+            child: Container(
+              padding: EdgeInsets.only(top: 20),
+              child: ListView(
+                // padding: const EdgeInsets.symmetric(vertical: ),
+                children: sidebarLinks.map(_buildItemAtIndex).toList(),
+              ),
             ),
           ),
         ],
@@ -74,9 +81,13 @@ class _AppSidebarState extends State<AppSidebar> {
     return _menuItem(
       icon: item.icon,
       title: item.name,
+      selected: item.route == widget.activeRoute,
       onTap: () {
         if (item.route != null) {
-          Navigator.pushNamed(context, item.route!);
+          widget.onRouteSelected(item.route!);
+          if (!widget.isDesktop) {
+            widget.scaffoldKey.currentState?.closeDrawer();
+          }
         }
       },
     );
@@ -84,7 +95,7 @@ class _AppSidebarState extends State<AppSidebar> {
 
   Widget _buildGroupSection(AppSidebarLink item) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.only(left: 15),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -106,8 +117,19 @@ class _AppSidebarState extends State<AppSidebar> {
     );
   }
 
+  bool _itemHasActiveRoute(AppSidebarLink item) {
+    if (item.route != null && item.route == widget.activeRoute) {
+      return true;
+    }
+    if (item.children != null) {
+      return item.children!.any(_itemHasActiveRoute);
+    }
+    return false;
+  }
+
   Widget _buildDropdownItem(AppSidebarLink item) {
-    final expanded = _expanded[item.name] ?? false;
+    final activeInSubtree = _itemHasActiveRoute(item);
+    final expanded = _expanded[item.name] ?? activeInSubtree;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: Column(
@@ -133,7 +155,9 @@ class _AppSidebarState extends State<AppSidebar> {
                   Icon(
                     item.icon,
                     size: 15,
-                    color: expanded ? AppColors.primary : Colors.grey.shade600,
+                    color: activeInSubtree
+                        ? AppColors.primary
+                        : Colors.grey.shade600,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -141,8 +165,10 @@ class _AppSidebarState extends State<AppSidebar> {
                       item.name,
                       style: TextStyle(
                         fontSize: 14,
-                        fontWeight: FontWeight.normal,
-                        color: expanded
+                        fontWeight: activeInSubtree
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                        color: activeInSubtree
                             ? AppColors.primary
                             : AppColors.textMain,
                       ),
@@ -191,34 +217,50 @@ class _AppSidebarState extends State<AppSidebar> {
   }
 
   Widget _buildDropdownChild(AppSidebarLink child) {
-    return InkWell(
-      onTap: () {
-        if (child.route != null) Navigator.pushNamed(context, child.route!);
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        child: Row(
-          children: [
-            Container(
-              width: 6,
-              height: 6,
-              decoration: const BoxDecoration(
-                color: AppColors.primary,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                child.name,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.normal,
-                  color: AppColors.textMain,
+    final bool selected = child.route == widget.activeRoute;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: InkWell(
+        onTap: () {
+          if (child.route != null) {
+            widget.onRouteSelected(child.route!);
+            if (!widget.isDesktop) {
+              widget.scaffoldKey.currentState?.closeDrawer();
+            }
+          }
+        },
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.primary.withOpacity(0.08)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: selected ? AppColors.primary : Colors.grey.shade400,
+                  shape: BoxShape.circle,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  child.name,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+                    color: selected ? AppColors.primary : AppColors.textMain,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -227,25 +269,52 @@ class _AppSidebarState extends State<AppSidebar> {
   Widget _menuItem({
     required IconData icon,
     required String title,
+    required bool selected,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
-        child: Row(
-          children: [
-            Icon(icon, size: 15, color: Colors.grey.shade600),
-            const SizedBox(width: 14),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey.shade800,
-                fontWeight: FontWeight.normal,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 3),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.primary.withOpacity(0.1)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              if (selected)
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                )
+              else
+                const SizedBox(width: 4),
+              const SizedBox(width: 8),
+              Icon(
+                icon,
+                size: 14,
+                color: selected ? AppColors.primary : Colors.grey.shade600,
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: selected ? AppColors.primary : Colors.grey.shade800,
+                    fontWeight: FontWeight.normal,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

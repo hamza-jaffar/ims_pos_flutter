@@ -40,7 +40,7 @@ const sidebarLinks = [
       //   route: "/category/create",
       // ),
       AppSidebarLink(icon: Icons.branding_watermark, name: 'Brands'),
-      AppSidebarLink(icon: Icons.straighten, name: 'Units'),
+      // AppSidebarLink(icon: Icons.straighten, name: 'Units'),
     ],
   ),
 ];

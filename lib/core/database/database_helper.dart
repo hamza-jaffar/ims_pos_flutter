@@ -5,6 +5,8 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'package:ims_pos_system/core/database/tables/category_table.dart';
+import 'package:ims_pos_system/core/database/tables/user_table.dart';
 import 'package:ims_pos_system/models/user.dart';
 
 class DatabaseHelper {
@@ -14,8 +16,8 @@ class DatabaseHelper {
   static const String _databaseName = 'ims_pos_system.db';
   static const int _databaseVersion = 2;
 
-  static const String userTable = 'users';
-  static const String categoryTable = 'categories';
+  static const String userTable = UserTable.tableName;
+  static const String categoryTable = CategoryTable.tableName;
 
   Database? _database;
 
@@ -43,7 +45,8 @@ class DatabaseHelper {
           onCreate: _createDb,
           onUpgrade: _onUpgrade,
           onOpen: (db) async {
-            await _ensureCategoryTable(db);
+            await CategoryTable.ensureTable(db);
+            await UserTable.ensureTable(db);
             await _ensureDefaultAdmin(db);
           },
         ),
@@ -56,59 +59,22 @@ class DatabaseHelper {
       onCreate: _createDb,
       onUpgrade: _onUpgrade,
       onOpen: (db) async {
-        await _ensureCategoryTable(db);
+        await CategoryTable.ensureTable(db);
+        await UserTable.ensureTable(db);
         await _ensureDefaultAdmin(db);
       },
     );
   }
 
-  Future<void> _ensureCategoryTable(Database db) async {
-    await db.execute('''
-      CREATE TABLE IF NOT EXISTS $categoryTable(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        code TEXT,
-        description TEXT,
-        is_active INTEGER NOT NULL DEFAULT 1,
-        created_at TEXT NOT NULL
-      )
-    ''');
-  }
-
   Future<void> _createDb(Database db, int version) async {
-    await db.execute('''
-      CREATE TABLE $userTable(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        email TEXT NOT NULL UNIQUE,
-        password TEXT NOT NULL
-      )
-    ''');
-    await db.execute('''
-      CREATE TABLE $categoryTable(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        code TEXT,
-        description TEXT,
-        is_active INTEGER NOT NULL DEFAULT 1,
-        created_at TEXT NOT NULL
-      )
-    ''');
+    await UserTable.createTable(db);
+    await CategoryTable.createTable(db);
     await _ensureDefaultAdmin(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      await db.execute('''
-        CREATE TABLE IF NOT EXISTS $categoryTable(
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL,
-          code TEXT,
-          description TEXT,
-          is_active INTEGER NOT NULL DEFAULT 1,
-          created_at TEXT NOT NULL
-        )
-      ''');
+      await CategoryTable.ensureTable(db);
     }
   }
 

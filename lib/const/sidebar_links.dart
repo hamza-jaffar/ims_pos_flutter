@@ -39,7 +39,11 @@ const sidebarLinks = [
       //   name: 'Sub Category',
       //   route: "/category/create",
       // ),
-      AppSidebarLink(icon: Icons.branding_watermark, name: 'Brands'),
+      AppSidebarLink(
+        icon: Icons.branding_watermark,
+        name: 'Brands',
+        route: "/brands",
+      ),
       // AppSidebarLink(icon: Icons.straighten, name: 'Units'),
     ],
   ),

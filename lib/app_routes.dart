@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:ims_pos_system/models/brand.dart';
 import 'package:ims_pos_system/models/category.dart';
+import 'package:ims_pos_system/screens/inventory/brand/brand_screen.dart';
+import 'package:ims_pos_system/screens/inventory/brand/create_brand_screen.dart';
+import 'package:ims_pos_system/screens/inventory/brand/edit_brand_screen.dart';
 import 'package:ims_pos_system/screens/inventory/category/category_screen.dart';
 import 'package:ims_pos_system/screens/inventory/category/create_category_screen.dart';
 import 'package:ims_pos_system/screens/inventory/category/edit_category_screen.dart';
@@ -11,7 +15,12 @@ class AppRoutes {
   static const String createProduct = '/products/create';
   static const String categories = '/categories';
   static const String createCategory = '/category/create';
-  static const String editCategory = '/category/edit'; // used as prefix: /category/edit/:id
+  static const String editCategory =
+      '/category/edit'; // used as prefix: /category/edit/:id
+  static const String brands = '/brands';
+  static const String createBrand = '/brand/create';
+  static const String editBrand =
+      '/brand/edit'; // used as prefix: /brand/edit/:id
 
   /// Parses a route string and returns the matching widget.
   /// Accepts an [onRouteSelected] callback for seamless in-layout navigation.
@@ -33,6 +42,10 @@ class AppRoutes {
         return CategoryScreen(onRouteSelected: callback);
       case createCategory:
         return CreateCategoryScreen(onRouteSelected: callback);
+      case brands:
+        return BrandScreen(onRouteSelected: callback);
+      case createBrand:
+        return CreateBrandScreen(onRouteSelected: callback);
     }
 
     // Parameterized: /category/edit/:id
@@ -51,6 +64,20 @@ class AppRoutes {
       }
     }
 
+    // Parameterized: /brand/edit/:id
+    if (route.startsWith('$editBrand/')) {
+      final idStr = route.substring('$editBrand/'.length);
+      final id = int.tryParse(idStr);
+      if (id != null) {
+        final brand = args?['brand'] as Brand?;
+        return EditBrandScreen(
+          onRouteSelected: callback,
+          brandId: id,
+          initialBrand: brand,
+        );
+      }
+    }
+
     return null;
   }
 
@@ -59,5 +86,7 @@ class AppRoutes {
     createProduct: (context) => const CreateProductScreen(),
     categories: (context) => CategoryScreen(onRouteSelected: (r) {}),
     createCategory: (context) => CreateCategoryScreen(onRouteSelected: (r) {}),
+    brands: (context) => BrandScreen(onRouteSelected: (r) {}),
+    createBrand: (context) => CreateBrandScreen(onRouteSelected: (r) {}),
   };
 }

@@ -87,7 +87,11 @@ class _MainLayoutState extends State<MainLayout> {
           Expanded(
             child: Column(
               children: [
-                AppHeader(scaffoldKey: _scaffoldKey, isDesktop: isDesktop),
+                AppHeader(
+                  scaffoldKey: _scaffoldKey,
+                  isDesktop: isDesktop,
+                  onRouteSelected: _updateRoute,
+                ),
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, constraints) {

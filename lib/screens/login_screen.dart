@@ -1,8 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:ims_pos_system/const/app_colors.dart';
-import 'package:ims_pos_system/const/meta_data.dart';
 import 'package:ims_pos_system/screens/home_screen.dart';
 import 'package:ims_pos_system/services/auth_service.dart';
+import 'package:ims_pos_system/services/platform_settings_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -113,14 +115,27 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(
-                                  Icons.storefront,
-                                  size: 32,
-                                  color: AppColors.primary,
-                                ),
+                                if (PlatformSettingsService.instance.settings.logoPath != null && PlatformSettingsService.instance.settings.logoPath!.isNotEmpty)
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: Image.file(
+                                      File(PlatformSettingsService.instance.settings.logoPath!),
+                                      width: 32,
+                                      height: 32,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) =>
+                                          Icon(Icons.storefront, size: 32, color: AppColors.primary),
+                                    ),
+                                  )
+                                else
+                                  Icon(
+                                    Icons.storefront,
+                                    size: 32,
+                                    color: AppColors.primary,
+                                  ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  AppConstants.appName,
+                                  PlatformSettingsService.instance.settings.platformName,
                                   style: TextStyle(
                                     fontSize: 28,
                                     fontWeight: FontWeight.bold,
@@ -266,7 +281,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 48),
                           Center(
                             child: Text(
-                              'Copyrights © 2026 - ${AppConstants.appName}',
+                              'Copyrights © 2026 - ${PlatformSettingsService.instance.settings.platformName}',
                               style: TextStyle(
                                 color: AppColors.textSecondary,
                                 fontSize: 12,

@@ -12,24 +12,31 @@ import 'package:ims_pos_system/services/supplier_service.dart';
 import 'package:ims_pos_system/services/platform_settings_service.dart';
 import 'package:ims_pos_system/widgets/searchable_dropdown.dart';
 
-class CreateProductScreen extends StatefulWidget {
+class EditProductScreen extends StatefulWidget {
   final ValueChanged<String> onRouteSelected;
+  final int productId;
+  final Product? initialProduct;
 
-  const CreateProductScreen({super.key, required this.onRouteSelected});
+  const EditProductScreen({
+    super.key,
+    required this.onRouteSelected,
+    required this.productId,
+    this.initialProduct,
+  });
 
   @override
-  State<CreateProductScreen> createState() => _CreateProductScreenState();
+  State<EditProductScreen> createState() => _EditProductScreenState();
 }
 
-class _CreateProductScreenState extends State<CreateProductScreen> {
+class _EditProductScreenState extends State<EditProductScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final _nameController = TextEditingController();
   final _barcodeController = TextEditingController();
-  final _quantityController = TextEditingController(text: '0');
-  final _minStockController = TextEditingController(text: '5');
-  final _purchasePriceController = TextEditingController(text: '0.0');
-  final _sellingPriceController = TextEditingController(text: '0.0');
+  final _quantityController = TextEditingController();
+  final _minStockController = TextEditingController();
+  final _purchasePriceController = TextEditingController();
+  final _sellingPriceController = TextEditingController();
   final _discountPriceController = TextEditingController();
   final _descriptionController = TextEditingController();
 
@@ -42,13 +49,14 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
   List<Supplier> _suppliers = [];
 
   bool _isActive = true;
-  bool _isLoadingDropdowns = true;
+  bool _isLoading = true;
   bool _isSaving = false;
+  Product? _product;
 
   @override
   void initState() {
     super.initState();
-    _loadDropdownData();
+    _loadAllData();
   }
 
   @override
@@ -64,27 +72,69 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
     super.dispose();
   }
 
-  Future<void> _loadDropdownData() async {
-    setState(() => _isLoadingDropdowns = true);
+  Future<void> _loadAllData() async {
+    setState(() => _isLoading = true);
     try {
       final brands = await BrandService.instance.getAll();
       final categories = await CategoryService.instance.getAll();
       final suppliers = await SupplierService.instance.getAll();
 
+      Product? product = widget.initialProduct;
+      product ??= await ProductService.instance.getById(widget.productId);
+
+      final loadedProduct = product;
+      if (loadedProduct == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Product not found.'),
+              backgroundColor: AppColors.danger,
+            ),
+          );
+          widget.onRouteSelected(AppRoutes.products);
+        }
+        return;
+      }
+
       if (mounted) {
         setState(() {
-          _brands = brands.where((b) => b.isActive).toList();
-          _categories = categories.where((c) => c.isActive).toList();
-          _suppliers = suppliers.where((s) => s.isActive).toList();
-          _isLoadingDropdowns = false;
+          _product = loadedProduct;
+
+          _brands = brands
+              .where((b) => b.isActive || b.id == loadedProduct.brandId)
+              .toList();
+          _categories = categories
+              .where((c) => c.isActive || c.id == loadedProduct.categoryId)
+              .toList();
+          _suppliers = suppliers
+              .where((s) => s.isActive || s.id == loadedProduct.supplierId)
+              .toList();
+
+          _nameController.text = loadedProduct.name;
+          _barcodeController.text = loadedProduct.barcode ?? '';
+          _quantityController.text = loadedProduct.quantity.toString();
+          _minStockController.text = loadedProduct.minStockQuantity.toString();
+          _purchasePriceController.text = loadedProduct.purchasePrice.toString();
+          _sellingPriceController.text = loadedProduct.sellingPrice.toString();
+          _discountPriceController.text = loadedProduct.discountPrice != null
+              ? loadedProduct.discountPrice.toString()
+              : '';
+          _descriptionController.text = loadedProduct.description ?? '';
+
+          _selectedBrandId = loadedProduct.brandId;
+          _selectedCategoryId = loadedProduct.categoryId;
+          _selectedSupplierId = loadedProduct.supplierId;
+          _isActive = loadedProduct.isActive;
+
+          _isLoading = false;
         });
       }
     } catch (error) {
       if (mounted) {
-        setState(() => _isLoadingDropdowns = false);
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load related data: $error'),
+            content: Text('Failed to load product data: $error'),
             backgroundColor: AppColors.danger,
           ),
         );
@@ -93,12 +143,14 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
   }
 
   Future<void> _handleSave() async {
+    if (_product == null) return;
     if (!_formKey.currentState!.validate()) return;
 
     final name = _nameController.text.trim();
 
-    // Check unique Name
-    final nameExists = await ProductService.instance.nameExists(name);
+    // Check unique Name (excluding current product)
+    final nameExists =
+        await ProductService.instance.nameExists(name, excludeId: _product!.id);
     if (nameExists && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -120,9 +172,8 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
             ? null
             : double.tryParse(_discountPriceController.text.trim());
 
-    final product = Product(
+    final updatedProduct = _product!.copyWith(
       name: name,
-      code: '', // auto-generated in service
       barcode: _barcodeController.text.trim().isEmpty
           ? null
           : _barcodeController.text.trim(),
@@ -138,17 +189,16 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
           ? null
           : _descriptionController.text.trim(),
       isActive: _isActive,
-      createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
 
     try {
-      await ProductService.instance.create(product);
+      await ProductService.instance.update(updatedProduct);
       if (mounted) {
         setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Product created successfully!'),
+            content: Text('Product updated successfully!'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -159,7 +209,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
         setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to save product: $error'),
+            content: Text('Failed to update product: $error'),
             backgroundColor: AppColors.danger,
           ),
         );
@@ -173,7 +223,6 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Back nav
           TextButton.icon(
             onPressed: () => widget.onRouteSelected(AppRoutes.products),
             icon: const Icon(Icons.arrow_back, size: 18, color: AppColors.primary),
@@ -184,12 +233,12 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
           ),
           const SizedBox(height: 12),
           const Text(
-            'Create Product',
+            'Edit Product',
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textMain),
           ),
           const SizedBox(height: 4),
           const Text(
-            'Add a new product with stock, pricing, and discount information.',
+            'Update product information, stocks, and pricing.',
             style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
           ),
           const SizedBox(height: 24),
@@ -203,7 +252,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                 BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10, offset: const Offset(0, 4)),
               ],
             ),
-            child: _isLoadingDropdowns
+            child: _isLoading
                 ? const Center(
                     child: Padding(
                       padding: EdgeInsets.symmetric(vertical: 40),
@@ -241,10 +290,10 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                                   _buildStatusToggle(),
                                 ),
                                 const SizedBox(height: 20),
-                                // Row 4: Opening Stock + Min Stock
+                                // Row 4: Stock + Min Stock
                                 _buildResponsiveRow(
                                   isWide,
-                                  _buildField('Opening Stock (Quantity)', _quantityController, 'e.g. 100', isNumeric: true),
+                                  _buildField('Current Stock (Quantity)', _quantityController, 'e.g. 100', isNumeric: true),
                                   _buildField('Low Stock Alert Threshold', _minStockController, 'e.g. 5', isNumeric: true),
                                 ),
                                 const SizedBox(height: 20),
@@ -493,7 +542,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
                 child: _isSaving
                     ? const Center(child: SizedBox(width: 18, height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)))
-                    : const Text('Save Product', style: TextStyle(fontWeight: FontWeight.w600)),
+                    : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.w600)),
               ),
             ],
           );
@@ -524,7 +573,7 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
               child: _isSaving
                   ? const SizedBox(width: 18, height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Save Product', style: TextStyle(fontWeight: FontWeight.w600)),
+                  : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.w600)),
             ),
           ],
         );

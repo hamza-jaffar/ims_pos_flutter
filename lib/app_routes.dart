@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:ims_pos_system/models/brand.dart';
 import 'package:ims_pos_system/models/category.dart';
 import 'package:ims_pos_system/models/supplier.dart';
+import 'package:ims_pos_system/models/product.dart';
 import 'package:ims_pos_system/screens/inventory/brand/brand_screen.dart';
 import 'package:ims_pos_system/screens/inventory/brand/create_brand_screen.dart';
 import 'package:ims_pos_system/screens/inventory/brand/edit_brand_screen.dart';
@@ -13,26 +14,29 @@ import 'package:ims_pos_system/screens/inventory/category/create_category_screen
 import 'package:ims_pos_system/screens/inventory/category/edit_category_screen.dart';
 import 'package:ims_pos_system/screens/inventory/product/create_product_screen.dart';
 import 'package:ims_pos_system/screens/inventory/product/product_screen.dart';
+import 'package:ims_pos_system/screens/inventory/product/edit_product_screen.dart';
+import 'package:ims_pos_system/screens/inventory/product/low_stocks_screen.dart';
+import 'package:ims_pos_system/screens/settings/platform_settings_screen.dart';
+import 'package:ims_pos_system/screens/settings/user_management_screen.dart';
 
 class AppRoutes {
   static const String products = '/products';
   static const String createProduct = '/products/create';
+  static const String editProduct = '/products/edit';
+  static const String lowStocks = '/products/low-stock';
   static const String categories = '/categories';
   static const String createCategory = '/category/create';
-  static const String editCategory =
-      '/category/edit'; // used as prefix: /category/edit/:id
+  static const String editCategory = '/category/edit';
   static const String brands = '/brands';
   static const String createBrand = '/brand/create';
-  static const String editBrand =
-      '/brand/edit'; // used as prefix: /brand/edit/:id
+  static const String editBrand = '/brand/edit';
   static const String suppliers = '/suppliers';
   static const String createSupplier = '/supplier/create';
-  static const String editSupplier =
-      '/supplier/edit'; // used as prefix: /supplier/edit/:id
+  static const String editSupplier = '/supplier/edit';
+  static const String platformSettings = '/settings/platform';
+  static const String userManagement = '/settings/users';
 
   /// Parses a route string and returns the matching widget.
-  /// Accepts an [onRouteSelected] callback for seamless in-layout navigation.
-  /// Accepts optional [args] map for passing data like a category to edit.
   static Widget? getContent(
     String route, {
     ValueChanged<String>? onRouteSelected,
@@ -40,12 +44,13 @@ class AppRoutes {
   }) {
     final callback = onRouteSelected ?? (r) {};
 
-    // Exact matches
     switch (route) {
       case products:
-        return const ProductScreen();
+        return ProductScreen(onRouteSelected: callback);
       case createProduct:
-        return const CreateProductScreen();
+        return CreateProductScreen(onRouteSelected: callback);
+      case lowStocks:
+        return LowStocksScreen(onRouteSelected: callback);
       case categories:
         return CategoryScreen(onRouteSelected: callback);
       case createCategory:
@@ -58,6 +63,24 @@ class AppRoutes {
         return SupplierScreen(onRouteSelected: callback);
       case createSupplier:
         return CreateSupplierScreen(onRouteSelected: callback);
+      case platformSettings:
+        return PlatformSettingsScreen(onRouteSelected: callback);
+      case userManagement:
+        return UserManagementScreen(onRouteSelected: callback);
+    }
+
+    // Parameterized: /products/edit/:id
+    if (route.startsWith('$editProduct/')) {
+      final idStr = route.substring('$editProduct/'.length);
+      final id = int.tryParse(idStr);
+      if (id != null) {
+        final product = args?['product'] as Product?;
+        return EditProductScreen(
+          onRouteSelected: callback,
+          productId: id,
+          initialProduct: product,
+        );
+      }
     }
 
     // Parameterized: /category/edit/:id
@@ -65,8 +88,6 @@ class AppRoutes {
       final idStr = route.substring('$editCategory/'.length);
       final id = int.tryParse(idStr);
       if (id != null) {
-        // If args already carries the category (passed from list), use it directly.
-        // Otherwise, EditCategoryScreen will load it by ID.
         final category = args?['category'] as Category?;
         return EditCategoryScreen(
           onRouteSelected: callback,
@@ -108,13 +129,20 @@ class AppRoutes {
   }
 
   static Map<String, WidgetBuilder> routes = {
-    products: (context) => const ProductScreen(),
-    createProduct: (context) => const CreateProductScreen(),
+    products: (context) => ProductScreen(onRouteSelected: (r) {}),
+    createProduct: (context) => CreateProductScreen(onRouteSelected: (r) {}),
+    lowStocks: (context) => LowStocksScreen(onRouteSelected: (r) {}),
     categories: (context) => CategoryScreen(onRouteSelected: (r) {}),
-    createCategory: (context) => CreateCategoryScreen(onRouteSelected: (r) {}),
+    createCategory: (context) =>
+        CreateCategoryScreen(onRouteSelected: (r) {}),
     brands: (context) => BrandScreen(onRouteSelected: (r) {}),
     createBrand: (context) => CreateBrandScreen(onRouteSelected: (r) {}),
     suppliers: (context) => SupplierScreen(onRouteSelected: (r) {}),
-    createSupplier: (context) => CreateSupplierScreen(onRouteSelected: (r) {}),
+    createSupplier: (context) =>
+        CreateSupplierScreen(onRouteSelected: (r) {}),
+    platformSettings: (context) =>
+        PlatformSettingsScreen(onRouteSelected: (r) {}),
+    userManagement: (context) =>
+        UserManagementScreen(onRouteSelected: (r) {}),
   };
 }

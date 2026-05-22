@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:ims_pos_system/models/brand.dart';
 import 'package:ims_pos_system/models/category.dart';
+import 'package:ims_pos_system/models/supplier.dart';
 import 'package:ims_pos_system/screens/inventory/brand/brand_screen.dart';
 import 'package:ims_pos_system/screens/inventory/brand/create_brand_screen.dart';
 import 'package:ims_pos_system/screens/inventory/brand/edit_brand_screen.dart';
+import 'package:ims_pos_system/screens/inventory/supplier/supplier_screen.dart';
+import 'package:ims_pos_system/screens/inventory/supplier/create_supplier_screen.dart';
+import 'package:ims_pos_system/screens/inventory/supplier/edit_supplier_screen.dart';
 import 'package:ims_pos_system/screens/inventory/category/category_screen.dart';
 import 'package:ims_pos_system/screens/inventory/category/create_category_screen.dart';
 import 'package:ims_pos_system/screens/inventory/category/edit_category_screen.dart';
@@ -21,6 +25,10 @@ class AppRoutes {
   static const String createBrand = '/brand/create';
   static const String editBrand =
       '/brand/edit'; // used as prefix: /brand/edit/:id
+  static const String suppliers = '/suppliers';
+  static const String createSupplier = '/supplier/create';
+  static const String editSupplier =
+      '/supplier/edit'; // used as prefix: /supplier/edit/:id
 
   /// Parses a route string and returns the matching widget.
   /// Accepts an [onRouteSelected] callback for seamless in-layout navigation.
@@ -46,6 +54,10 @@ class AppRoutes {
         return BrandScreen(onRouteSelected: callback);
       case createBrand:
         return CreateBrandScreen(onRouteSelected: callback);
+      case suppliers:
+        return SupplierScreen(onRouteSelected: callback);
+      case createSupplier:
+        return CreateSupplierScreen(onRouteSelected: callback);
     }
 
     // Parameterized: /category/edit/:id
@@ -78,6 +90,20 @@ class AppRoutes {
       }
     }
 
+    // Parameterized: /supplier/edit/:id
+    if (route.startsWith('$editSupplier/')) {
+      final idStr = route.substring('$editSupplier/'.length);
+      final id = int.tryParse(idStr);
+      if (id != null) {
+        final supplier = args?['supplier'] as Supplier?;
+        return EditSupplierScreen(
+          onRouteSelected: callback,
+          supplierId: id,
+          initialSupplier: supplier,
+        );
+      }
+    }
+
     return null;
   }
 
@@ -88,5 +114,7 @@ class AppRoutes {
     createCategory: (context) => CreateCategoryScreen(onRouteSelected: (r) {}),
     brands: (context) => BrandScreen(onRouteSelected: (r) {}),
     createBrand: (context) => CreateBrandScreen(onRouteSelected: (r) {}),
+    suppliers: (context) => SupplierScreen(onRouteSelected: (r) {}),
+    createSupplier: (context) => CreateSupplierScreen(onRouteSelected: (r) {}),
   };
 }

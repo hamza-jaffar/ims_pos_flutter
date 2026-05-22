@@ -8,9 +8,23 @@ class CategoryService {
   final DatabaseHelper _db = DatabaseHelper.instance;
   static const String _table = DatabaseHelper.categoryTable;
 
+  Future<String> generateCode() async {
+    final db = await _db.database;
+    final result = await db.rawQuery(
+      "SELECT code FROM $_table WHERE code LIKE 'CAT-%' ORDER BY code DESC LIMIT 1",
+    );
+    if (result.isEmpty) return 'CAT-001';
+    final lastCode = result.first['code'] as String;
+    final numPart = int.tryParse(lastCode.replaceFirst('CAT-', '')) ?? 0;
+    return 'CAT-${(numPart + 1).toString().padLeft(3, '0')}';
+  }
+
   Future<int> create(Category category) async {
     final db = await _db.database;
-    return await db.insert(_table, category.toMap()..remove('id'));
+    final code = await generateCode();
+    final map = category.toMap()..remove('id');
+    map['code'] = code;
+    return await db.insert(_table, map);
   }
 
   Future<List<Category>> getAll() async {

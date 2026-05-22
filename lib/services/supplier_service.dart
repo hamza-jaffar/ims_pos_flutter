@@ -1,63 +1,63 @@
 import 'package:ims_pos_system/core/database/database_helper.dart';
-import 'package:ims_pos_system/models/brand.dart';
+import 'package:ims_pos_system/models/supplier.dart';
 
-class BrandService {
-  BrandService._();
-  static final BrandService instance = BrandService._();
+class SupplierService {
+  SupplierService._();
+  static final SupplierService instance = SupplierService._();
 
   final DatabaseHelper _db = DatabaseHelper.instance;
-  static const String _table = DatabaseHelper.brandTable;
+  static const String _table = DatabaseHelper.supplierTable;
 
   Future<String> generateCode() async {
     final db = await _db.database;
     final result = await db.rawQuery(
-      "SELECT code FROM $_table WHERE code LIKE 'BRD-%' ORDER BY code DESC LIMIT 1",
+      "SELECT code FROM $_table WHERE code LIKE 'SUP-%' ORDER BY code DESC LIMIT 1",
     );
-    if (result.isEmpty) return 'BRD-001';
+    if (result.isEmpty) return 'SUP-001';
     final lastCode = result.first['code'] as String;
-    final numPart = int.tryParse(lastCode.replaceFirst('BRD-', '')) ?? 0;
-    return 'BRD-${(numPart + 1).toString().padLeft(3, '0')}';
+    final numPart = int.tryParse(lastCode.replaceFirst('SUP-', '')) ?? 0;
+    return 'SUP-${(numPart + 1).toString().padLeft(3, '0')}';
   }
 
-  Future<int> create(Brand brand) async {
+  Future<int> create(Supplier supplier) async {
     final db = await _db.database;
     final code = await generateCode();
-    final map = brand.toMap()..remove('id');
+    final map = supplier.toMap()..remove('id');
     map['code'] = code;
     return await db.insert(_table, map);
   }
 
-  Future<List<Brand>> getAll() async {
+  Future<List<Supplier>> getAll() async {
     final db = await _db.database;
     final maps = await db.query(_table, orderBy: 'created_at DESC');
-    return maps.map((m) => Brand.fromMap(m)).toList();
+    return maps.map((m) => Supplier.fromMap(m)).toList();
   }
 
-  Future<Brand?> getById(int id) async {
+  Future<Supplier?> getById(int id) async {
     final db = await _db.database;
     final maps = await db.query(_table, where: 'id = ?', whereArgs: [id]);
     if (maps.isEmpty) return null;
-    return Brand.fromMap(maps.first);
+    return Supplier.fromMap(maps.first);
   }
 
-  Future<List<Brand>> search(String query) async {
+  Future<List<Supplier>> search(String query) async {
     final db = await _db.database;
     final maps = await db.query(
       _table,
-      where: 'name LIKE ? OR code LIKE ?',
-      whereArgs: ['%$query%', '%$query%'],
+      where: 'name LIKE ? OR code LIKE ? OR email LIKE ? OR phone LIKE ?',
+      whereArgs: ['%$query%', '%$query%', '%$query%', '%$query%'],
       orderBy: 'created_at DESC',
     );
-    return maps.map((m) => Brand.fromMap(m)).toList();
+    return maps.map((m) => Supplier.fromMap(m)).toList();
   }
 
-  Future<int> update(Brand brand) async {
+  Future<int> update(Supplier supplier) async {
     final db = await _db.database;
     return await db.update(
       _table,
-      brand.toMap()..remove('id'),
+      supplier.toMap()..remove('id'),
       where: 'id = ?',
-      whereArgs: [brand.id],
+      whereArgs: [supplier.id],
     );
   }
 
@@ -74,5 +74,16 @@ class BrandService {
       whereArgs: excludeId != null ? [name.trim(), excludeId] : [name.trim()],
     );
     return maps.isNotEmpty;
+  }
+
+  Future<List<Supplier>> getActiveSuppliers() async {
+    final db = await _db.database;
+    final maps = await db.query(
+      _table,
+      where: 'is_active = ?',
+      whereArgs: [1],
+      orderBy: 'name ASC',
+    );
+    return maps.map((m) => Supplier.fromMap(m)).toList();
   }
 }

@@ -23,7 +23,6 @@ class EditCategoryScreen extends StatefulWidget {
 class _EditCategoryScreenState extends State<EditCategoryScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _codeController = TextEditingController();
   final _descriptionController = TextEditingController();
   bool _isActive = true;
   bool _isSaving = false;
@@ -62,7 +61,6 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
   void _populateFields(Category cat) {
     _category = cat;
     _nameController.text = cat.name;
-    _codeController.text = cat.code ?? '';
     _descriptionController.text = cat.description ?? '';
     _isActive = cat.isActive;
   }
@@ -70,7 +68,6 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _codeController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
@@ -97,9 +94,6 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
 
     final updated = _category!.copyWith(
       name: _nameController.text.trim(),
-      code: _codeController.text.trim().isEmpty
-          ? null
-          : _codeController.text.trim(),
       description: _descriptionController.text.trim().isEmpty
           ? null
           : _descriptionController.text.trim(),
@@ -197,48 +191,12 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                 children: [
                   LayoutBuilder(
                     builder: (context, constraints) {
-                      final bool isNarrow = constraints.maxWidth < 600;
-                      if (isNarrow) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildField(
-                              'Category Name *',
-                              _nameController,
-                              'e.g. Electronics',
-                              required: true,
-                            ),
-                            const SizedBox(height: 20),
-                            _buildField(
-                              'Category Code',
-                              _codeController,
-                              'e.g. CAT-001',
-                            ),
-                          ],
-                        );
-                      } else {
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: _buildField(
-                                'Category Name *',
-                                _nameController,
-                                'e.g. Electronics',
-                                required: true,
-                              ),
-                            ),
-                            const SizedBox(width: 24),
-                            Expanded(
-                              child: _buildField(
-                                'Category Code',
-                                _codeController,
-                                'e.g. CAT-001',
-                              ),
-                            ),
-                          ],
-                        );
-                      }
+                      return _buildField(
+                        'Category Name *',
+                        _nameController,
+                        'e.g. Electronics',
+                        required: true,
+                      );
                     },
                   ),
                   const SizedBox(height: 20),

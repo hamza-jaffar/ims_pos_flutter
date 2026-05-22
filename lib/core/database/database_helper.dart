@@ -7,6 +7,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import 'package:ims_pos_system/core/database/tables/brand_table.dart';
 import 'package:ims_pos_system/core/database/tables/category_table.dart';
+import 'package:ims_pos_system/core/database/tables/supplier_table.dart';
 import 'package:ims_pos_system/core/database/tables/user_table.dart';
 import 'package:ims_pos_system/models/user.dart';
 
@@ -15,11 +16,12 @@ class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
 
   static const String _databaseName = 'ims_pos_system.db';
-  static const int _databaseVersion = 3;
+  static const int _databaseVersion = 4;
 
   static const String userTable = UserTable.tableName;
   static const String categoryTable = CategoryTable.tableName;
   static const String brandTable = BrandTable.tableName;
+  static const String supplierTable = SupplierTable.tableName;
 
   Database? _database;
 
@@ -49,6 +51,7 @@ class DatabaseHelper {
           onOpen: (db) async {
             await CategoryTable.ensureTable(db);
             await BrandTable.ensureTable(db);
+            await SupplierTable.ensureTable(db);
             await UserTable.ensureTable(db);
             await _ensureDefaultAdmin(db);
           },
@@ -64,6 +67,7 @@ class DatabaseHelper {
       onOpen: (db) async {
         await CategoryTable.ensureTable(db);
         await BrandTable.ensureTable(db);
+        await SupplierTable.ensureTable(db);
         await UserTable.ensureTable(db);
         await _ensureDefaultAdmin(db);
       },
@@ -74,6 +78,7 @@ class DatabaseHelper {
     await UserTable.createTable(db);
     await CategoryTable.createTable(db);
     await BrandTable.createTable(db);
+    await SupplierTable.createTable(db);
     await _ensureDefaultAdmin(db);
   }
 
@@ -83,6 +88,9 @@ class DatabaseHelper {
     }
     if (oldVersion < 3) {
       await BrandTable.ensureTable(db);
+    }
+    if (oldVersion < 4) {
+      await SupplierTable.ensureTable(db);
     }
   }
 

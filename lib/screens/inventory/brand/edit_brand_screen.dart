@@ -23,7 +23,6 @@ class EditBrandScreen extends StatefulWidget {
 class _EditBrandScreenState extends State<EditBrandScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _codeController = TextEditingController();
   final _descriptionController = TextEditingController();
   bool _isActive = true;
   bool _isSaving = false;
@@ -62,7 +61,6 @@ class _EditBrandScreenState extends State<EditBrandScreen> {
   void _populateFields(Brand brand) {
     _brand = brand;
     _nameController.text = brand.name;
-    _codeController.text = brand.code ?? '';
     _descriptionController.text = brand.description ?? '';
     _isActive = brand.isActive;
   }
@@ -70,7 +68,6 @@ class _EditBrandScreenState extends State<EditBrandScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _codeController.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
@@ -97,9 +94,6 @@ class _EditBrandScreenState extends State<EditBrandScreen> {
 
     final updated = _brand!.copyWith(
       name: _nameController.text.trim(),
-      code: _codeController.text.trim().isEmpty
-          ? null
-          : _codeController.text.trim(),
       description: _descriptionController.text.trim().isEmpty
           ? null
           : _descriptionController.text.trim(),
@@ -196,46 +190,11 @@ class _EditBrandScreenState extends State<EditBrandScreen> {
                 children: [
                   LayoutBuilder(
                     builder: (context, constraints) {
-                      final bool isNarrow = constraints.maxWidth < 600;
-                      if (isNarrow) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _buildField(
-                              'Brand Name *',
-                              _nameController,
-                              'e.g. Apple',
-                              required: true,
-                            ),
-                            const SizedBox(height: 20),
-                            _buildField(
-                              'Brand Code',
-                              _codeController,
-                              'e.g. BRD-001',
-                            ),
-                          ],
-                        );
-                      }
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: _buildField(
-                              'Brand Name *',
-                              _nameController,
-                              'e.g. Apple',
-                              required: true,
-                            ),
-                          ),
-                          const SizedBox(width: 24),
-                          Expanded(
-                            child: _buildField(
-                              'Brand Code',
-                              _codeController,
-                              'e.g. BRD-001',
-                            ),
-                          ),
-                        ],
+                      return _buildField(
+                        'Brand Name *',
+                        _nameController,
+                        'e.g. Apple',
+                        required: true,
                       );
                     },
                   ),

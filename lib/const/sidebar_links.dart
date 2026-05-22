@@ -47,4 +47,18 @@ const sidebarLinks = [
       // AppSidebarLink(icon: Icons.straighten, name: 'Units'),
     ],
   ),
+
+  AppSidebarLink(
+    icon: Icons.layers_outlined,
+    name: 'Peoples',
+    type: SidebarLinkType.group,
+    children: [
+      AppSidebarLink(
+        icon: Icons.local_print_shop,
+        name: 'Suppliers',
+        route: "/suppliers",
+      ),
+      AppSidebarLink(icon: Icons.people_alt_outlined, name: 'Customers'),
+    ],
+  ),
 ];

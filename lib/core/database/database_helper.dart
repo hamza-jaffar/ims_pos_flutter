@@ -9,6 +9,7 @@ import 'package:ims_pos_system/core/database/tables/brand_table.dart';
 import 'package:ims_pos_system/core/database/tables/category_table.dart';
 import 'package:ims_pos_system/core/database/tables/product_table.dart';
 import 'package:ims_pos_system/core/database/tables/room_table.dart';
+import 'package:ims_pos_system/core/database/tables/stock_adjustment_table.dart';
 import 'package:ims_pos_system/core/database/tables/supplier_table.dart';
 import 'package:ims_pos_system/core/database/tables/user_table.dart';
 import 'package:ims_pos_system/core/database/tables/platform_settings_table.dart';
@@ -27,6 +28,7 @@ class DatabaseHelper {
   static const String supplierTable = SupplierTable.tableName;
   static const String productTable = ProductTable.tableName;
   static const String roomTable = RoomTable.tableName;
+  static const String stockAdjustmentsTable = StockAdjustmentTable.tableName;
   static const String platformSettingsTable = PlatformSettingsTable.tableName;
 
   Database? _database;
@@ -84,6 +86,7 @@ class DatabaseHelper {
     await SupplierTable.createTable(db);
     await RoomTable.createTable(db);
     await ProductTable.createTable(db);
+    await StockAdjustmentTable.createTable(db);
     await PlatformSettingsTable.createTable(db);
     await _ensureDefaultAdmin(db);
   }
@@ -141,6 +144,7 @@ class DatabaseHelper {
     await RoomTable.ensureTable(db);
     await UserTable.ensureTable(db);
     await ProductTable.ensureTable(db);
+    await StockAdjustmentTable.ensureTable(db);
     await PlatformSettingsTable.ensureTable(db);
     await _ensureDefaultAdmin(db);
   }

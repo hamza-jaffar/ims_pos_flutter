@@ -135,6 +135,15 @@ class _CreateProductScreenState extends State<CreateProductScreen> {
       categoryId: _selectedCategoryId,
       supplierId: _selectedSupplierId,
       roomId: _selectedRoomId,
+      quantity: int.tryParse(_quantityController.text.trim()) ?? 0,
+      minStockQuantity: int.tryParse(_minStockController.text.trim()) ?? 5,
+      purchasePrice: purchasePrice,
+      sellingPrice: sellingPrice,
+      discountPrice: discountPrice,
+      description: _descriptionController.text.trim().isEmpty
+          ? null
+          : _descriptionController.text.trim(),
+      isActive: _isActive,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );

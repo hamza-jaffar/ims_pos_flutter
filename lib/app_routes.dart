@@ -16,6 +16,9 @@ import 'package:ims_pos_system/screens/inventory/product/create_product_screen.d
 import 'package:ims_pos_system/screens/inventory/product/product_screen.dart';
 import 'package:ims_pos_system/screens/inventory/product/edit_product_screen.dart';
 import 'package:ims_pos_system/screens/inventory/product/low_stocks_screen.dart';
+import 'package:ims_pos_system/screens/inventory/stock/stock_adjustment_screen.dart';
+import 'package:ims_pos_system/screens/inventory/stock/stock_history_screen.dart';
+import 'package:ims_pos_system/screens/inventory/stock/stock_management_screen.dart';
 import 'package:ims_pos_system/screens/inventory/room/room_screen.dart';
 import 'package:ims_pos_system/screens/inventory/room/create_room_screen.dart';
 import 'package:ims_pos_system/screens/inventory/room/edit_room_screen.dart';
@@ -27,6 +30,9 @@ class AppRoutes {
   static const String createProduct = '/products/create';
   static const String editProduct = '/products/edit';
   static const String lowStocks = '/products/low-stock';
+  static const String stocks = '/stocks';
+  static const String stockAdjustment = '/stock/adjust';
+  static const String stockHistory = '/stocks/history';
   static const String categories = '/categories';
   static const String createCategory = '/category/create';
   static const String editCategory = '/category/edit';
@@ -57,6 +63,10 @@ class AppRoutes {
         return CreateProductScreen(onRouteSelected: callback);
       case lowStocks:
         return LowStocksScreen(onRouteSelected: callback);
+      case stocks:
+        return StockManagementScreen(onRouteSelected: callback);
+      case stockHistory:
+        return StockHistoryScreen(onRouteSelected: callback);
       case categories:
         return CategoryScreen(onRouteSelected: callback);
       case createCategory:
@@ -90,6 +100,15 @@ class AppRoutes {
           productId: id,
           initialProduct: product,
         );
+      }
+    }
+
+    // Parameterized: /stock/adjust/:id
+    if (route.startsWith('$stockAdjustment/')) {
+      final idStr = route.substring('$stockAdjustment/'.length);
+      final id = int.tryParse(idStr);
+      if (id != null) {
+        return StockAdjustmentScreen(onRouteSelected: callback, productId: id);
       }
     }
 
@@ -156,6 +175,8 @@ class AppRoutes {
     products: (context) => ProductScreen(onRouteSelected: (r) {}),
     createProduct: (context) => CreateProductScreen(onRouteSelected: (r) {}),
     lowStocks: (context) => LowStocksScreen(onRouteSelected: (r) {}),
+    stocks: (context) => StockManagementScreen(onRouteSelected: (r) {}),
+    stockHistory: (context) => StockHistoryScreen(onRouteSelected: (r) {}),
     categories: (context) => CategoryScreen(onRouteSelected: (r) {}),
     createCategory: (context) => CreateCategoryScreen(onRouteSelected: (r) {}),
     brands: (context) => BrandScreen(onRouteSelected: (r) {}),

@@ -53,6 +53,24 @@ const sidebarLinks = [
 
   AppSidebarLink(
     icon: Icons.layers_outlined,
+    name: 'Stocks',
+    type: SidebarLinkType.group,
+    children: [
+      AppSidebarLink(
+        icon: Icons.inventory_2_outlined,
+        name: 'Stock Management',
+        route: AppRoutes.stocks,
+      ),
+      AppSidebarLink(
+        icon: Icons.history,
+        name: 'Stock History',
+        route: AppRoutes.stockHistory,
+      ),
+    ],
+  ),
+
+  AppSidebarLink(
+    icon: Icons.layers_outlined,
     name: 'Peoples',
     type: SidebarLinkType.group,
     children: [

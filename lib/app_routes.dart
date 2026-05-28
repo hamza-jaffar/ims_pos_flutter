@@ -16,6 +16,9 @@ import 'package:ims_pos_system/screens/inventory/product/create_product_screen.d
 import 'package:ims_pos_system/screens/inventory/product/product_screen.dart';
 import 'package:ims_pos_system/screens/inventory/product/edit_product_screen.dart';
 import 'package:ims_pos_system/screens/inventory/product/low_stocks_screen.dart';
+import 'package:ims_pos_system/screens/inventory/room/room_screen.dart';
+import 'package:ims_pos_system/screens/inventory/room/create_room_screen.dart';
+import 'package:ims_pos_system/screens/inventory/room/edit_room_screen.dart';
 import 'package:ims_pos_system/screens/settings/platform_settings_screen.dart';
 import 'package:ims_pos_system/screens/settings/user_management_screen.dart';
 
@@ -33,6 +36,9 @@ class AppRoutes {
   static const String suppliers = '/suppliers';
   static const String createSupplier = '/supplier/create';
   static const String editSupplier = '/supplier/edit';
+  static const String rooms = '/rooms';
+  static const String createRoom = '/room/create';
+  static const String editRoom = '/room/edit';
   static const String platformSettings = '/settings/platform';
   static const String userManagement = '/settings/users';
 
@@ -63,6 +69,10 @@ class AppRoutes {
         return SupplierScreen(onRouteSelected: callback);
       case createSupplier:
         return CreateSupplierScreen(onRouteSelected: callback);
+      case rooms:
+        return RoomScreen(onRouteSelected: callback);
+      case createRoom:
+        return CreateRoomScreen(onRouteSelected: callback);
       case platformSettings:
         return PlatformSettingsScreen(onRouteSelected: callback);
       case userManagement:
@@ -125,6 +135,20 @@ class AppRoutes {
       }
     }
 
+    // Parameterized: /room/edit/:id
+    if (route.startsWith('$editRoom/')) {
+      final idStr = route.substring('$editRoom/'.length);
+      final id = int.tryParse(idStr);
+      if (id != null) {
+        final room = args?['room'];
+        return EditRoomScreen(
+          onRouteSelected: callback,
+          roomId: id,
+          initialRoom: room,
+        );
+      }
+    }
+
     return null;
   }
 
@@ -133,16 +157,15 @@ class AppRoutes {
     createProduct: (context) => CreateProductScreen(onRouteSelected: (r) {}),
     lowStocks: (context) => LowStocksScreen(onRouteSelected: (r) {}),
     categories: (context) => CategoryScreen(onRouteSelected: (r) {}),
-    createCategory: (context) =>
-        CreateCategoryScreen(onRouteSelected: (r) {}),
+    createCategory: (context) => CreateCategoryScreen(onRouteSelected: (r) {}),
     brands: (context) => BrandScreen(onRouteSelected: (r) {}),
     createBrand: (context) => CreateBrandScreen(onRouteSelected: (r) {}),
     suppliers: (context) => SupplierScreen(onRouteSelected: (r) {}),
-    createSupplier: (context) =>
-        CreateSupplierScreen(onRouteSelected: (r) {}),
+    createSupplier: (context) => CreateSupplierScreen(onRouteSelected: (r) {}),
+    rooms: (context) => RoomScreen(onRouteSelected: (r) {}),
+    createRoom: (context) => CreateRoomScreen(onRouteSelected: (r) {}),
     platformSettings: (context) =>
         PlatformSettingsScreen(onRouteSelected: (r) {}),
-    userManagement: (context) =>
-        UserManagementScreen(onRouteSelected: (r) {}),
+    userManagement: (context) => UserManagementScreen(onRouteSelected: (r) {}),
   };
 }

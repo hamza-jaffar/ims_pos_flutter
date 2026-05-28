@@ -4,9 +4,11 @@ import 'package:ims_pos_system/const/app_colors.dart';
 import 'package:ims_pos_system/models/product.dart';
 import 'package:ims_pos_system/models/category.dart';
 import 'package:ims_pos_system/models/brand.dart';
+import 'package:ims_pos_system/models/room.dart';
 import 'package:ims_pos_system/services/product_service.dart';
 import 'package:ims_pos_system/services/category_service.dart';
 import 'package:ims_pos_system/services/brand_service.dart';
+import 'package:ims_pos_system/services/room_service.dart';
 import 'package:ims_pos_system/services/platform_settings_service.dart';
 import 'package:ims_pos_system/widgets/searchable_dropdown.dart';
 
@@ -24,6 +26,7 @@ class _ProductScreenState extends State<ProductScreen> {
   List<Product> _filtered = [];
   List<Category> _categories = [];
   List<Brand> _brands = [];
+  List<Room> _rooms = [];
 
   bool _isLoading = true;
   final Set<int> _hoveredRows = {};
@@ -32,6 +35,7 @@ class _ProductScreenState extends State<ProductScreen> {
 
   int? _filterCategoryId;
   int? _filterBrandId;
+  int? _filterRoomId;
   String _filterStockStatus =
       'All'; // 'All', 'In Stock', 'Low Stock', 'Out of Stock'
 
@@ -55,6 +59,7 @@ class _ProductScreenState extends State<ProductScreen> {
       final products = await ProductService.instance.getAll();
       final categories = await CategoryService.instance.getAll();
       final brands = await BrandService.instance.getAll();
+      final rooms = await RoomService.instance.getAll();
 
       if (mounted) {
         setState(() {
@@ -62,6 +67,7 @@ class _ProductScreenState extends State<ProductScreen> {
           _filtered = products;
           _categories = categories;
           _brands = brands;
+          _rooms = rooms;
           _isLoading = false;
         });
         _applyFilters();
@@ -91,7 +97,8 @@ class _ProductScreenState extends State<ProductScreen> {
             p.code.toLowerCase().contains(query) ||
             (p.categoryName?.toLowerCase().contains(query) ?? false) ||
             (p.brandName?.toLowerCase().contains(query) ?? false) ||
-            (p.supplierName?.toLowerCase().contains(query) ?? false);
+            (p.supplierName?.toLowerCase().contains(query) ?? false) ||
+            (p.roomName?.toLowerCase().contains(query) ?? false);
 
         // 2. Category Filter
         final matchesCategory =
@@ -101,7 +108,10 @@ class _ProductScreenState extends State<ProductScreen> {
         final matchesBrand =
             _filterBrandId == null || p.brandId == _filterBrandId;
 
-        // 4. Stock Status Filter
+        // 4. Room Filter
+        final matchesRoom = _filterRoomId == null || p.roomId == _filterRoomId;
+
+        // 5. Stock Status Filter
         bool matchesStock = true;
         if (_filterStockStatus == 'In Stock') {
           matchesStock = p.quantity > p.minStockQuantity;
@@ -111,7 +121,11 @@ class _ProductScreenState extends State<ProductScreen> {
           matchesStock = p.quantity == 0;
         }
 
-        return matchesQuery && matchesCategory && matchesBrand && matchesStock;
+        return matchesQuery &&
+            matchesCategory &&
+            matchesBrand &&
+            matchesRoom &&
+            matchesStock;
       }).toList();
     });
   }
@@ -396,6 +410,29 @@ class _ProductScreenState extends State<ProductScreen> {
                 ),
                 if (!isWide) const SizedBox(height: 10),
                 if (isWide) const SizedBox(width: 10),
+                // Room Filter
+                Expanded(
+                  flex: isWide ? 1 : 0,
+                  child: SearchableDropdown<int>(
+                    label: 'Room',
+                    hint: 'All Rooms',
+                    selectedValue: _filterRoomId,
+                    items: _rooms
+                        .map(
+                          (r) => SearchableDropdownItem<int>(
+                            value: r.id!,
+                            label: r.name,
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (val) {
+                      setState(() => _filterRoomId = val);
+                      _applyFilters();
+                    },
+                  ),
+                ),
+                if (!isWide) const SizedBox(height: 10),
+                if (isWide) const SizedBox(width: 10),
                 // Stock Status Filter
                 Expanded(
                   flex: isWide ? 1 : 0,
@@ -562,7 +599,7 @@ class _ProductScreenState extends State<ProductScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              // Category/Brand
+              // Category/Brand/Room
               Expanded(
                 flex: 2,
                 child: Column(
@@ -579,6 +616,15 @@ class _ProductScreenState extends State<ProductScreen> {
                     const SizedBox(height: 2),
                     Text(
                       product.brandName ?? '—',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.textSecondary,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      product.roomName ?? '—',
                       style: const TextStyle(
                         fontSize: 11,
                         color: AppColors.textSecondary,
@@ -875,8 +921,8 @@ class _ProductScreenState extends State<ProductScreen> {
               ],
             ),
             const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Category: ${product.categoryName ?? "—"}',
@@ -885,6 +931,15 @@ class _ProductScreenState extends State<ProductScreen> {
                     color: AppColors.textSecondary,
                   ),
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  'Room: ${product.roomName ?? "—"}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 10),
                 Row(
                   children: [
                     _actionButton(

@@ -34,6 +34,11 @@ const sidebarLinks = [
         route: AppRoutes.lowStocks,
       ),
       AppSidebarLink(
+        icon: Icons.meeting_room_outlined,
+        name: 'Rooms',
+        route: AppRoutes.rooms,
+      ),
+      AppSidebarLink(
         icon: Icons.category_outlined,
         name: 'Category',
         route: AppRoutes.categories,

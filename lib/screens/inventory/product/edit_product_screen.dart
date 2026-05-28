@@ -5,10 +5,12 @@ import 'package:ims_pos_system/models/product.dart';
 import 'package:ims_pos_system/models/brand.dart';
 import 'package:ims_pos_system/models/category.dart';
 import 'package:ims_pos_system/models/supplier.dart';
+import 'package:ims_pos_system/models/room.dart';
 import 'package:ims_pos_system/services/product_service.dart';
 import 'package:ims_pos_system/services/brand_service.dart';
 import 'package:ims_pos_system/services/category_service.dart';
 import 'package:ims_pos_system/services/supplier_service.dart';
+import 'package:ims_pos_system/services/room_service.dart';
 import 'package:ims_pos_system/services/platform_settings_service.dart';
 import 'package:ims_pos_system/widgets/searchable_dropdown.dart';
 
@@ -43,10 +45,12 @@ class _EditProductScreenState extends State<EditProductScreen> {
   int? _selectedBrandId;
   int? _selectedCategoryId;
   int? _selectedSupplierId;
+  int? _selectedRoomId;
 
   List<Brand> _brands = [];
   List<Category> _categories = [];
   List<Supplier> _suppliers = [];
+  List<Room> _rooms = [];
 
   bool _isActive = true;
   bool _isLoading = true;
@@ -78,6 +82,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
       final brands = await BrandService.instance.getAll();
       final categories = await CategoryService.instance.getAll();
       final suppliers = await SupplierService.instance.getAll();
+      final rooms = await RoomService.instance.getActiveRooms();
 
       Product? product = widget.initialProduct;
       product ??= await ProductService.instance.getById(widget.productId);
@@ -109,12 +114,16 @@ class _EditProductScreenState extends State<EditProductScreen> {
           _suppliers = suppliers
               .where((s) => s.isActive || s.id == loadedProduct.supplierId)
               .toList();
+          _rooms = rooms
+              .where((r) => r.isActive || r.id == loadedProduct.roomId)
+              .toList();
 
           _nameController.text = loadedProduct.name;
           _barcodeController.text = loadedProduct.barcode ?? '';
           _quantityController.text = loadedProduct.quantity.toString();
           _minStockController.text = loadedProduct.minStockQuantity.toString();
-          _purchasePriceController.text = loadedProduct.purchasePrice.toString();
+          _purchasePriceController.text = loadedProduct.purchasePrice
+              .toString();
           _sellingPriceController.text = loadedProduct.sellingPrice.toString();
           _discountPriceController.text = loadedProduct.discountPrice != null
               ? loadedProduct.discountPrice.toString()
@@ -124,6 +133,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
           _selectedBrandId = loadedProduct.brandId;
           _selectedCategoryId = loadedProduct.categoryId;
           _selectedSupplierId = loadedProduct.supplierId;
+          _selectedRoomId = loadedProduct.roomId;
           _isActive = loadedProduct.isActive;
 
           _isLoading = false;
@@ -149,8 +159,10 @@ class _EditProductScreenState extends State<EditProductScreen> {
     final name = _nameController.text.trim();
 
     // Check unique Name (excluding current product)
-    final nameExists =
-        await ProductService.instance.nameExists(name, excludeId: _product!.id);
+    final nameExists = await ProductService.instance.nameExists(
+      name,
+      excludeId: _product!.id,
+    );
     if (nameExists && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -167,10 +179,9 @@ class _EditProductScreenState extends State<EditProductScreen> {
         double.tryParse(_purchasePriceController.text.trim()) ?? 0.0;
     final double sellingPrice =
         double.tryParse(_sellingPriceController.text.trim()) ?? 0.0;
-    final double? discountPrice =
-        _discountPriceController.text.trim().isEmpty
-            ? null
-            : double.tryParse(_discountPriceController.text.trim());
+    final double? discountPrice = _discountPriceController.text.trim().isEmpty
+        ? null
+        : double.tryParse(_discountPriceController.text.trim());
 
     final updatedProduct = _product!.copyWith(
       name: name,
@@ -180,6 +191,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
       brandId: _selectedBrandId,
       categoryId: _selectedCategoryId,
       supplierId: _selectedSupplierId,
+      roomId: _selectedRoomId,
       quantity: int.tryParse(_quantityController.text.trim()) ?? 0,
       minStockQuantity: int.tryParse(_minStockController.text.trim()) ?? 5,
       purchasePrice: purchasePrice,
@@ -225,16 +237,27 @@ class _EditProductScreenState extends State<EditProductScreen> {
         children: [
           TextButton.icon(
             onPressed: () => widget.onRouteSelected(AppRoutes.products),
-            icon: const Icon(Icons.arrow_back, size: 18, color: AppColors.primary),
+            icon: const Icon(
+              Icons.arrow_back,
+              size: 18,
+              color: AppColors.primary,
+            ),
             label: const Text(
               'Back to Products',
-              style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           const SizedBox(height: 12),
           const Text(
             'Edit Product',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.textMain),
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textMain,
+            ),
           ),
           const SizedBox(height: 4),
           const Text(
@@ -249,14 +272,20 @@ class _EditProductScreenState extends State<EditProductScreen> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: AppColors.border),
               boxShadow: [
-                BoxShadow(color: Colors.black.withAlpha(5), blurRadius: 10, offset: const Offset(0, 4)),
+                BoxShadow(
+                  color: Colors.black.withAlpha(5),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
               ],
             ),
             child: _isLoading
                 ? const Center(
                     child: Padding(
                       padding: EdgeInsets.symmetric(vertical: 40),
-                      child: CircularProgressIndicator(color: AppColors.primary),
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
                     ),
                   )
                 : Form(
@@ -272,8 +301,17 @@ class _EditProductScreenState extends State<EditProductScreen> {
                                 // Row 1: Product Name + Barcode
                                 _buildResponsiveRow(
                                   isWide,
-                                  _buildField('Product Name *', _nameController, 'Enter product name', required: true),
-                                  _buildField('Barcode', _barcodeController, 'Scan or enter barcode'),
+                                  _buildField(
+                                    'Product Name *',
+                                    _nameController,
+                                    'Enter product name',
+                                    required: true,
+                                  ),
+                                  _buildField(
+                                    'Barcode',
+                                    _barcodeController,
+                                    'Scan or enter barcode',
+                                  ),
                                 ),
                                 const SizedBox(height: 20),
                                 // Row 2: Category + Brand
@@ -283,25 +321,48 @@ class _EditProductScreenState extends State<EditProductScreen> {
                                   _buildBrandDropdown(),
                                 ),
                                 const SizedBox(height: 20),
-                                // Row 3: Supplier + Status
+                                // Row 3: Room + Supplier
                                 _buildResponsiveRow(
                                   isWide,
+                                  _buildRoomDropdown(),
                                   _buildSupplierDropdown(),
-                                  _buildStatusToggle(),
                                 ),
+                                const SizedBox(height: 20),
+                                // Row 4: Status
+                                _buildStatusToggle(),
                                 const SizedBox(height: 20),
                                 // Row 4: Stock + Min Stock
                                 _buildResponsiveRow(
                                   isWide,
-                                  _buildField('Current Stock (Quantity)', _quantityController, 'e.g. 100', isNumeric: true),
-                                  _buildField('Low Stock Alert Threshold', _minStockController, 'e.g. 5', isNumeric: true),
+                                  _buildField(
+                                    'Current Stock (Quantity)',
+                                    _quantityController,
+                                    'e.g. 100',
+                                    isNumeric: true,
+                                  ),
+                                  _buildField(
+                                    'Low Stock Alert Threshold',
+                                    _minStockController,
+                                    'e.g. 5',
+                                    isNumeric: true,
+                                  ),
                                 ),
                                 const SizedBox(height: 20),
                                 // Row 5: Purchase Price + Selling Price
                                 _buildResponsiveRow(
                                   isWide,
-                                  _buildField('Purchase Price (${PlatformSettingsService.instance.settings.currencySymbol})', _purchasePriceController, 'e.g. 10.0', isDecimal: true),
-                                  _buildField('Selling Price (${PlatformSettingsService.instance.settings.currencySymbol})', _sellingPriceController, 'e.g. 15.0', isDecimal: true),
+                                  _buildField(
+                                    'Purchase Price (${PlatformSettingsService.instance.settings.currencySymbol})',
+                                    _purchasePriceController,
+                                    'e.g. 10.0',
+                                    isDecimal: true,
+                                  ),
+                                  _buildField(
+                                    'Selling Price (${PlatformSettingsService.instance.settings.currencySymbol})',
+                                    _sellingPriceController,
+                                    'e.g. 15.0',
+                                    isDecimal: true,
+                                  ),
                                 ),
                                 const SizedBox(height: 20),
                                 // Row 6: Discount Price (half width)
@@ -315,7 +376,11 @@ class _EditProductScreenState extends State<EditProductScreen> {
                           },
                         ),
                         const SizedBox(height: 20),
-                        _buildTextArea('Description', _descriptionController, 'Enter product details, specifications...'),
+                        _buildTextArea(
+                          'Description',
+                          _descriptionController,
+                          'Enter product details, specifications...',
+                        ),
                         const SizedBox(height: 32),
                         _buildActionButtons(),
                       ],
@@ -340,11 +405,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        child1,
-        const SizedBox(height: 20),
-        child2,
-      ],
+      children: [child1, const SizedBox(height: 20), child2],
     );
   }
 
@@ -361,7 +422,11 @@ class _EditProductScreenState extends State<EditProductScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textMain),
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textMain,
+          ),
         ),
         const SizedBox(height: 8),
         TextFormField(
@@ -377,11 +442,13 @@ class _EditProductScreenState extends State<EditProductScreen> {
             if (v != null && v.trim().isNotEmpty) {
               if (isNumeric) {
                 final n = int.tryParse(v.trim());
-                if (n == null || n < 0) return 'Must be a non-negative whole number.';
+                if (n == null || n < 0)
+                  return 'Must be a non-negative whole number.';
               }
               if (isDecimal) {
                 final d = double.tryParse(v.trim());
-                if (d == null || d < 0) return 'Must be a valid positive number.';
+                if (d == null || d < 0)
+                  return 'Must be a valid positive number.';
               }
             }
             return null;
@@ -397,7 +464,11 @@ class _EditProductScreenState extends State<EditProductScreen> {
       children: [
         Text(
           'Discount Price (${PlatformSettingsService.instance.settings.currencySymbol})',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textMain),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textMain,
+          ),
         ),
         const SizedBox(height: 8),
         TextFormField(
@@ -407,8 +478,10 @@ class _EditProductScreenState extends State<EditProductScreen> {
           validator: (v) {
             if (v != null && v.trim().isNotEmpty) {
               final disc = double.tryParse(v.trim());
-              if (disc == null || disc < 0) return 'Must be a valid positive number.';
-              final selling = double.tryParse(_sellingPriceController.text.trim()) ?? 0.0;
+              if (disc == null || disc < 0)
+                return 'Must be a valid positive number.';
+              final selling =
+                  double.tryParse(_sellingPriceController.text.trim()) ?? 0.0;
               if (disc >= selling) {
                 return 'Discount must be less than Selling Price (${PlatformSettingsService.instance.settings.currencySymbol}${selling.toStringAsFixed(2)})';
               }
@@ -456,13 +529,29 @@ class _EditProductScreenState extends State<EditProductScreen> {
     );
   }
 
+  Widget _buildRoomDropdown() {
+    return SearchableDropdown<int>(
+      label: 'Room',
+      hint: 'Search and select room...',
+      selectedValue: _selectedRoomId,
+      items: _rooms
+          .map((r) => SearchableDropdownItem<int>(value: r.id!, label: r.name))
+          .toList(),
+      onChanged: (val) => setState(() => _selectedRoomId = val),
+    );
+  }
+
   Widget _buildStatusToggle() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
           'Status',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textMain),
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textMain,
+          ),
         ),
         const SizedBox(height: 8),
         Container(
@@ -484,7 +573,9 @@ class _EditProductScreenState extends State<EditProductScreen> {
                 _isActive ? 'Active (Listed)' : 'Inactive (Hidden)',
                 style: TextStyle(
                   fontSize: 14,
-                  color: _isActive ? AppColors.success : AppColors.textSecondary,
+                  color: _isActive
+                      ? AppColors.success
+                      : AppColors.textSecondary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -495,12 +586,22 @@ class _EditProductScreenState extends State<EditProductScreen> {
     );
   }
 
-  Widget _buildTextArea(String label, TextEditingController controller, String hint) {
+  Widget _buildTextArea(
+    String label,
+    TextEditingController controller,
+    String hint,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textMain)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textMain,
+          ),
+        ),
         const SizedBox(height: 8),
         TextFormField(
           controller: controller,
@@ -520,14 +621,23 @@ class _EditProductScreenState extends State<EditProductScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               OutlinedButton(
-                onPressed: _isSaving ? null : () => widget.onRouteSelected(AppRoutes.products),
+                onPressed: _isSaving
+                    ? null
+                    : () => widget.onRouteSelected(AppRoutes.products),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   side: const BorderSide(color: AppColors.border),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
-                child: const Text('Cancel',
-                    style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
               const SizedBox(height: 12),
               ElevatedButton(
@@ -537,12 +647,25 @@ class _EditProductScreenState extends State<EditProductScreen> {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 child: _isSaving
-                    ? const Center(child: SizedBox(width: 18, height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)))
-                    : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ? const Center(
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        ),
+                      )
+                    : const Text(
+                        'Save Changes',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
               ),
             ],
           );
@@ -551,14 +674,26 @@ class _EditProductScreenState extends State<EditProductScreen> {
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             OutlinedButton(
-              onPressed: _isSaving ? null : () => widget.onRouteSelected(AppRoutes.products),
+              onPressed: _isSaving
+                  ? null
+                  : () => widget.onRouteSelected(AppRoutes.products),
               style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
                 side: const BorderSide(color: AppColors.border),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              child: const Text('Cancel',
-                  style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
             const SizedBox(width: 16),
             ElevatedButton(
@@ -566,14 +701,28 @@ class _EditProductScreenState extends State<EditProductScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
               child: _isSaving
-                  ? const SizedBox(width: 18, height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Save Changes', style: TextStyle(fontWeight: FontWeight.w600)),
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text(
+                      'Save Changes',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
             ),
           ],
         );

@@ -6,6 +6,7 @@ class Product {
   final int? brandId;
   final int? categoryId;
   final int? supplierId;
+  final int? roomId;
   final int quantity;
   final int minStockQuantity;
   final double purchasePrice;
@@ -20,6 +21,7 @@ class Product {
   final String? brandName;
   final String? categoryName;
   final String? supplierName;
+  final String? roomName;
 
   Product({
     this.id,
@@ -29,6 +31,7 @@ class Product {
     this.brandId,
     this.categoryId,
     this.supplierId,
+    this.roomId,
     this.quantity = 0,
     this.minStockQuantity = 5,
     this.purchasePrice = 0.0,
@@ -41,6 +44,7 @@ class Product {
     this.brandName,
     this.categoryName,
     this.supplierName,
+    this.roomName,
   });
 
   bool get isLowStock => quantity <= minStockQuantity;
@@ -59,6 +63,7 @@ class Product {
       'brand_id': brandId,
       'category_id': categoryId,
       'supplier_id': supplierId,
+      'room_id': roomId,
       'quantity': quantity,
       'min_stock_quantity': minStockQuantity,
       'purchase_price': purchasePrice,
@@ -84,6 +89,7 @@ class Product {
       minStockQuantity: map['min_stock_quantity'] as int,
       purchasePrice: (map['purchase_price'] as num).toDouble(),
       sellingPrice: (map['selling_price'] as num).toDouble(),
+      roomId: map['room_id'] as int?,
       discountPrice: map['discount_price'] != null
           ? (map['discount_price'] as num).toDouble()
           : null,
@@ -98,6 +104,7 @@ class Product {
       brandName: map['brand_name'] as String?,
       categoryName: map['category_name'] as String?,
       supplierName: map['supplier_name'] as String?,
+      roomName: map['room_name'] as String?,
     );
   }
 
@@ -109,6 +116,7 @@ class Product {
     int? brandId,
     int? categoryId,
     int? supplierId,
+    int? roomId,
     int? quantity,
     int? minStockQuantity,
     double? purchasePrice,
@@ -121,6 +129,7 @@ class Product {
     String? brandName,
     String? categoryName,
     String? supplierName,
+    String? roomName,
   }) {
     return Product(
       id: id ?? this.id,
@@ -130,6 +139,7 @@ class Product {
       brandId: brandId ?? this.brandId,
       categoryId: categoryId ?? this.categoryId,
       supplierId: supplierId ?? this.supplierId,
+      roomId: roomId ?? this.roomId,
       quantity: quantity ?? this.quantity,
       minStockQuantity: minStockQuantity ?? this.minStockQuantity,
       purchasePrice: purchasePrice ?? this.purchasePrice,
@@ -142,6 +152,7 @@ class Product {
       brandName: brandName ?? this.brandName,
       categoryName: categoryName ?? this.categoryName,
       supplierName: supplierName ?? this.supplierName,
+      roomName: roomName ?? this.roomName,
     );
   }
 

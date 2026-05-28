@@ -3,7 +3,8 @@ import 'package:sqflite/sqflite.dart';
 class ProductTable {
   static const String tableName = 'products';
 
-  static const String createTableSql = '''
+  static const String createTableSql =
+      '''
     CREATE TABLE $tableName(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -12,6 +13,7 @@ class ProductTable {
       brand_id INTEGER,
       category_id INTEGER,
       supplier_id INTEGER,
+      room_id INTEGER,
       quantity INTEGER NOT NULL DEFAULT 0,
       min_stock_quantity INTEGER NOT NULL DEFAULT 5,
       purchase_price REAL NOT NULL DEFAULT 0.0,
@@ -23,7 +25,8 @@ class ProductTable {
       updated_at TEXT NOT NULL,
       FOREIGN KEY(brand_id) REFERENCES brands(id) ON DELETE SET NULL,
       FOREIGN KEY(category_id) REFERENCES categories(id) ON DELETE SET NULL,
-      FOREIGN KEY(supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL
+      FOREIGN KEY(supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL,
+      FOREIGN KEY(room_id) REFERENCES rooms(id) ON DELETE SET NULL
     )
   ''';
 
@@ -41,6 +44,7 @@ class ProductTable {
         brand_id INTEGER,
         category_id INTEGER,
         supplier_id INTEGER,
+        room_id INTEGER,
         quantity INTEGER NOT NULL DEFAULT 0,
         min_stock_quantity INTEGER NOT NULL DEFAULT 5,
         purchase_price REAL NOT NULL DEFAULT 0.0,
@@ -52,7 +56,8 @@ class ProductTable {
         updated_at TEXT NOT NULL,
         FOREIGN KEY(brand_id) REFERENCES brands(id) ON DELETE SET NULL,
         FOREIGN KEY(category_id) REFERENCES categories(id) ON DELETE SET NULL,
-        FOREIGN KEY(supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL
+        FOREIGN KEY(supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL,
+        FOREIGN KEY(room_id) REFERENCES rooms(id) ON DELETE SET NULL
       )
     ''');
   }
@@ -63,6 +68,15 @@ class ProductTable {
     final columns = info.map((c) => c['name'] as String).toList();
     if (!columns.contains('barcode')) {
       await db.execute('ALTER TABLE $tableName ADD COLUMN barcode TEXT');
+    }
+  }
+
+  /// Runs migration for v8 → v9: adds room_id column if missing.
+  static Future<void> migrateV9(Database db) async {
+    final info = await db.rawQuery("PRAGMA table_info($tableName)");
+    final columns = info.map((c) => c['name'] as String).toList();
+    if (!columns.contains('room_id')) {
+      await db.execute('ALTER TABLE $tableName ADD COLUMN room_id INTEGER');
     }
   }
 }

@@ -8,6 +8,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:ims_pos_system/core/database/tables/brand_table.dart';
 import 'package:ims_pos_system/core/database/tables/category_table.dart';
 import 'package:ims_pos_system/core/database/tables/product_table.dart';
+import 'package:ims_pos_system/core/database/tables/room_table.dart';
 import 'package:ims_pos_system/core/database/tables/supplier_table.dart';
 import 'package:ims_pos_system/core/database/tables/user_table.dart';
 import 'package:ims_pos_system/core/database/tables/platform_settings_table.dart';
@@ -18,13 +19,14 @@ class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
 
   static const String _databaseName = 'ims_pos_system.db';
-  static const int _databaseVersion = 8;
+  static const int _databaseVersion = 9;
 
   static const String userTable = UserTable.tableName;
   static const String categoryTable = CategoryTable.tableName;
   static const String brandTable = BrandTable.tableName;
   static const String supplierTable = SupplierTable.tableName;
   static const String productTable = ProductTable.tableName;
+  static const String roomTable = RoomTable.tableName;
   static const String platformSettingsTable = PlatformSettingsTable.tableName;
 
   Database? _database;
@@ -46,40 +48,33 @@ class DatabaseHelper {
 
     if (!kIsWeb &&
         (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
-      return await databaseFactoryFfi.openDatabase(
+      final db = await databaseFactoryFfi.openDatabase(
         path,
         options: OpenDatabaseOptions(
           version: _databaseVersion,
           onCreate: _createDb,
           onUpgrade: _onUpgrade,
           onOpen: (db) async {
-            await CategoryTable.ensureTable(db);
-            await BrandTable.ensureTable(db);
-            await SupplierTable.ensureTable(db);
-            await UserTable.ensureTable(db);
-            await ProductTable.ensureTable(db);
-            await PlatformSettingsTable.ensureTable(db);
-            await _ensureDefaultAdmin(db);
+            await _ensureTables(db);
           },
         ),
       );
+      await _ensureTables(db);
+      return db;
     }
 
-    return await openDatabase(
+    final db = await openDatabase(
       path,
       version: _databaseVersion,
       onCreate: _createDb,
       onUpgrade: _onUpgrade,
       onOpen: (db) async {
-        await CategoryTable.ensureTable(db);
-        await BrandTable.ensureTable(db);
-        await SupplierTable.ensureTable(db);
-        await UserTable.ensureTable(db);
-        await ProductTable.ensureTable(db);
-        await PlatformSettingsTable.ensureTable(db);
-        await _ensureDefaultAdmin(db);
+        await _ensureTables(db);
       },
     );
+
+    await _ensureTables(db);
+    return db;
   }
 
   Future<void> _createDb(Database db, int version) async {
@@ -87,6 +82,7 @@ class DatabaseHelper {
     await CategoryTable.createTable(db);
     await BrandTable.createTable(db);
     await SupplierTable.createTable(db);
+    await RoomTable.createTable(db);
     await ProductTable.createTable(db);
     await PlatformSettingsTable.createTable(db);
     await _ensureDefaultAdmin(db);
@@ -114,6 +110,10 @@ class DatabaseHelper {
     if (oldVersion < 8) {
       await PlatformSettingsTable.migrateV8(db);
     }
+    if (oldVersion < 9) {
+      await RoomTable.ensureTable(db);
+      await ProductTable.migrateV9(db);
+    }
   }
 
   Future<void> _ensureDefaultAdmin(Database db) async {
@@ -132,6 +132,17 @@ class DatabaseHelper {
       );
       await db.insert(userTable, adminUser.toMap());
     }
+  }
+
+  Future<void> _ensureTables(Database db) async {
+    await CategoryTable.ensureTable(db);
+    await BrandTable.ensureTable(db);
+    await SupplierTable.ensureTable(db);
+    await RoomTable.ensureTable(db);
+    await UserTable.ensureTable(db);
+    await ProductTable.ensureTable(db);
+    await PlatformSettingsTable.ensureTable(db);
+    await _ensureDefaultAdmin(db);
   }
 
   Future<User?> getUserByEmail(String email) async {

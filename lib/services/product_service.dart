@@ -33,11 +33,13 @@ class ProductService {
       SELECT p.*, 
              c.name AS category_name, 
              b.name AS brand_name, 
-             s.name AS supplier_name
+             s.name AS supplier_name,
+             r.name AS room_name
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
       LEFT JOIN brands b ON p.brand_id = b.id
       LEFT JOIN suppliers s ON p.supplier_id = s.id
+      LEFT JOIN rooms r ON p.room_id = r.id
       ORDER BY p.created_at DESC
     ''';
     final maps = await db.rawQuery(sql);
@@ -50,11 +52,13 @@ class ProductService {
       SELECT p.*, 
              c.name AS category_name, 
              b.name AS brand_name, 
-             s.name AS supplier_name
+             s.name AS supplier_name,
+             r.name AS room_name
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
       LEFT JOIN brands b ON p.brand_id = b.id
       LEFT JOIN suppliers s ON p.supplier_id = s.id
+      LEFT JOIN rooms r ON p.room_id = r.id
       WHERE p.id = ?
     ''';
     final maps = await db.rawQuery(sql, [id]);
@@ -68,21 +72,25 @@ class ProductService {
       SELECT p.*, 
              c.name AS category_name, 
              b.name AS brand_name, 
-             s.name AS supplier_name
+             s.name AS supplier_name,
+             r.name AS room_name
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
       LEFT JOIN brands b ON p.brand_id = b.id
       LEFT JOIN suppliers s ON p.supplier_id = s.id
+      LEFT JOIN rooms r ON p.room_id = r.id
       WHERE p.name LIKE ? 
          OR p.code LIKE ? 
          OR p.barcode LIKE ?
          OR c.name LIKE ? 
          OR b.name LIKE ? 
          OR s.name LIKE ?
+         OR r.name LIKE ?
       ORDER BY p.created_at DESC
     ''';
     final searchVal = '%$query%';
     final maps = await db.rawQuery(sql, [
+      searchVal,
       searchVal,
       searchVal,
       searchVal,
@@ -109,10 +117,7 @@ class ProductService {
     final db = await _db.database;
     return await db.update(
       _table,
-      {
-        'quantity': quantity,
-        'updated_at': DateTime.now().toIso8601String(),
-      },
+      {'quantity': quantity, 'updated_at': DateTime.now().toIso8601String()},
       where: 'id = ?',
       whereArgs: [productId],
     );
@@ -149,11 +154,13 @@ class ProductService {
       SELECT p.*, 
              c.name AS category_name, 
              b.name AS brand_name, 
-             s.name AS supplier_name
+             s.name AS supplier_name,
+             r.name AS room_name
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
       LEFT JOIN brands b ON p.brand_id = b.id
       LEFT JOIN suppliers s ON p.supplier_id = s.id
+      LEFT JOIN rooms r ON p.room_id = r.id
       WHERE p.quantity <= p.min_stock_quantity
       ORDER BY p.quantity ASC
     ''';

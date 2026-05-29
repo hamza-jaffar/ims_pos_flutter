@@ -71,6 +71,24 @@ const sidebarLinks = [
 
   AppSidebarLink(
     icon: Icons.layers_outlined,
+    name: 'Purchases',
+    type: SidebarLinkType.group,
+    children: [
+      AppSidebarLink(
+        icon: Icons.shopping_bag_outlined,
+        name: 'Purchases',
+        route: AppRoutes.purchases,
+      ),
+      AppSidebarLink(
+        icon: Icons.keyboard_return_outlined,
+        name: 'Purchase Returns',
+        route: AppRoutes.purchaseReturns,
+      ),
+    ],
+  ),
+
+  AppSidebarLink(
+    icon: Icons.layers_outlined,
     name: 'Peoples',
     type: SidebarLinkType.group,
     children: [
@@ -79,7 +97,11 @@ const sidebarLinks = [
         name: 'Suppliers',
         route: AppRoutes.suppliers,
       ),
-      AppSidebarLink(icon: Icons.people_alt_outlined, name: 'Customers'),
+      AppSidebarLink(
+        icon: Icons.people_alt_outlined,
+        name: 'Customers',
+        route: AppRoutes.customers,
+      ),
     ],
   ),
 

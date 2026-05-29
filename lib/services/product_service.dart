@@ -167,4 +167,24 @@ class ProductService {
     final maps = await db.rawQuery(sql);
     return maps.map((m) => Product.fromMap(m)).toList();
   }
+
+  Future<List<Product>> getActiveProducts() async {
+    final db = await _db.database;
+    const sql = '''
+      SELECT p.*, 
+             c.name AS category_name, 
+             b.name AS brand_name, 
+             s.name AS supplier_name,
+             r.name AS room_name
+      FROM products p
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN brands b ON p.brand_id = b.id
+      LEFT JOIN suppliers s ON p.supplier_id = s.id
+      LEFT JOIN rooms r ON p.room_id = r.id
+      WHERE p.is_active = 1
+      ORDER BY p.name ASC
+    ''';
+    final maps = await db.rawQuery(sql);
+    return maps.map((m) => Product.fromMap(m)).toList();
+  }
 }

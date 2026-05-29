@@ -30,6 +30,7 @@ import 'package:ims_pos_system/screens/peoples/customer/create_customer_screen.d
 import 'package:ims_pos_system/screens/peoples/customer/edit_customer_screen.dart';
 import 'package:ims_pos_system/screens/purchases/purchase_list_screen.dart';
 import 'package:ims_pos_system/screens/purchases/create_purchase_screen.dart';
+import 'package:ims_pos_system/screens/reports/purchase_report_screen.dart';
 
 class AppRoutes {
   static const String products = '/products';
@@ -62,6 +63,7 @@ class AppRoutes {
   static const String editRoom = '/room/edit';
   static const String platformSettings = '/settings/platform';
   static const String userManagement = '/settings/users';
+  static const String purchaseReport = '/reports/purchase';
 
   /// Parses a route string and returns the matching widget.
   static Widget? getContent(
@@ -99,17 +101,35 @@ class AppRoutes {
       case createCustomer:
         return CreateCustomerScreen(onRouteSelected: callback);
       case purchases:
-        return PurchaseListScreen(onRouteSelected: callback, purchaseType: 'Purchase');
+        return PurchaseListScreen(
+          onRouteSelected: callback,
+          purchaseType: 'Purchase',
+        );
       case createPurchase:
-        return CreatePurchaseScreen(onRouteSelected: callback, purchaseType: 'Purchase');
+        return CreatePurchaseScreen(
+          onRouteSelected: callback,
+          purchaseType: 'Purchase',
+        );
       case purchaseOrders:
-        return PurchaseListScreen(onRouteSelected: callback, purchaseType: 'Order');
+        return PurchaseListScreen(
+          onRouteSelected: callback,
+          purchaseType: 'Order',
+        );
       case createPurchaseOrder:
-        return CreatePurchaseScreen(onRouteSelected: callback, purchaseType: 'Order');
+        return CreatePurchaseScreen(
+          onRouteSelected: callback,
+          purchaseType: 'Order',
+        );
       case purchaseReturns:
-        return PurchaseListScreen(onRouteSelected: callback, purchaseType: 'Return');
+        return PurchaseListScreen(
+          onRouteSelected: callback,
+          purchaseType: 'Return',
+        );
       case createPurchaseReturn:
-        return CreatePurchaseScreen(onRouteSelected: callback, purchaseType: 'Return');
+        return CreatePurchaseScreen(
+          onRouteSelected: callback,
+          purchaseType: 'Return',
+        );
       case rooms:
         return RoomScreen(onRouteSelected: callback);
       case createRoom:
@@ -118,6 +138,8 @@ class AppRoutes {
         return PlatformSettingsScreen(onRouteSelected: callback);
       case userManagement:
         return UserManagementScreen(onRouteSelected: callback);
+      case purchaseReport:
+        return PurchaseReportScreen(onRouteSelected: callback);
     }
 
     // Parameterized: /products/edit/:id
@@ -230,16 +252,23 @@ class AppRoutes {
     createSupplier: (context) => CreateSupplierScreen(onRouteSelected: (r) {}),
     customers: (context) => CustomerScreen(onRouteSelected: (r) {}),
     createCustomer: (context) => CreateCustomerScreen(onRouteSelected: (r) {}),
-    purchases: (context) => PurchaseListScreen(onRouteSelected: (r) {}, purchaseType: 'Purchase'),
-    createPurchase: (context) => CreatePurchaseScreen(onRouteSelected: (r) {}, purchaseType: 'Purchase'),
-    purchaseOrders: (context) => PurchaseListScreen(onRouteSelected: (r) {}, purchaseType: 'Order'),
-    createPurchaseOrder: (context) => CreatePurchaseScreen(onRouteSelected: (r) {}, purchaseType: 'Order'),
-    purchaseReturns: (context) => PurchaseListScreen(onRouteSelected: (r) {}, purchaseType: 'Return'),
-    createPurchaseReturn: (context) => CreatePurchaseScreen(onRouteSelected: (r) {}, purchaseType: 'Return'),
+    purchases: (context) =>
+        PurchaseListScreen(onRouteSelected: (r) {}, purchaseType: 'Purchase'),
+    createPurchase: (context) =>
+        CreatePurchaseScreen(onRouteSelected: (r) {}, purchaseType: 'Purchase'),
+    purchaseOrders: (context) =>
+        PurchaseListScreen(onRouteSelected: (r) {}, purchaseType: 'Order'),
+    createPurchaseOrder: (context) =>
+        CreatePurchaseScreen(onRouteSelected: (r) {}, purchaseType: 'Order'),
+    purchaseReturns: (context) =>
+        PurchaseListScreen(onRouteSelected: (r) {}, purchaseType: 'Return'),
+    createPurchaseReturn: (context) =>
+        CreatePurchaseScreen(onRouteSelected: (r) {}, purchaseType: 'Return'),
     rooms: (context) => RoomScreen(onRouteSelected: (r) {}),
     createRoom: (context) => CreateRoomScreen(onRouteSelected: (r) {}),
     platformSettings: (context) =>
         PlatformSettingsScreen(onRouteSelected: (r) {}),
     userManagement: (context) => UserManagementScreen(onRouteSelected: (r) {}),
+    purchaseReport: (context) => PurchaseReportScreen(onRouteSelected: (r) {}),
   };
 }

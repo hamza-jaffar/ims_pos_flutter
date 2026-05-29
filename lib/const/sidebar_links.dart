@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:ims_pos_system/app_routes.dart';
 import 'package:ims_pos_system/enums/sidebar_link_types.dart';
 import 'package:ims_pos_system/models/app_sidebar_link.dart';
@@ -101,6 +102,19 @@ const sidebarLinks = [
         icon: Icons.people_alt_outlined,
         name: 'Customers',
         route: AppRoutes.customers,
+      ),
+    ],
+  ),
+
+  AppSidebarLink(
+    icon: Icons.layers_outlined,
+    name: 'Reports',
+    type: SidebarLinkType.group,
+    children: [
+      AppSidebarLink(
+        icon: Icons.assessment_outlined,
+        name: 'Purchase Report',
+        route: AppRoutes.purchaseReport,
       ),
     ],
   ),

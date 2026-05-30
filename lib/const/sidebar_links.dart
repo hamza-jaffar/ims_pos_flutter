@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/material.dart';
 import 'package:ims_pos_system/app_routes.dart';
 import 'package:ims_pos_system/enums/sidebar_link_types.dart';
 import 'package:ims_pos_system/models/app_sidebar_link.dart';
@@ -48,6 +47,19 @@ const sidebarLinks = [
         icon: Icons.branding_watermark_outlined,
         name: 'Brands',
         route: AppRoutes.brands,
+      ),
+    ],
+  ),
+
+  AppSidebarLink(
+    icon: Icons.layers_outlined,
+    name: 'Sale',
+    type: SidebarLinkType.group,
+    children: [
+      AppSidebarLink(
+        icon: Icons.point_of_sale_outlined,
+        name: 'Pos',
+        route: AppRoutes.pos,
       ),
     ],
   ),

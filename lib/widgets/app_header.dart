@@ -84,11 +84,12 @@ class _AppHeaderState extends State<AppHeader> {
 
           if (widget.isDesktop) const SizedBox(width: 20),
 
-          // Notification icon
-          _iconButton(
-            Icons.notifications_none_outlined,
-            tooltip: 'Notifications',
-            onPressed: () {},
+          TextButton.icon(
+            onPressed: () {
+              widget.onRouteSelected?.call(AppRoutes.pos);
+            },
+            icon: const Icon(Icons.point_of_sale_outlined, size: 20),
+            label: const Text("POS"),
           ),
 
           const SizedBox(width: 8),
@@ -134,9 +135,7 @@ class _AppHeaderState extends State<AppHeader> {
   Widget _userAvatarButton() {
     return PopupMenuButton<String>(
       offset: const Offset(0, 45),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       onSelected: (value) {
         if (value == 'logout') {
           Navigator.of(context).pushAndRemoveUntil(

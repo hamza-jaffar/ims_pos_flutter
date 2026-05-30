@@ -31,6 +31,7 @@ import 'package:ims_pos_system/screens/peoples/customer/edit_customer_screen.dar
 import 'package:ims_pos_system/screens/purchases/purchase_list_screen.dart';
 import 'package:ims_pos_system/screens/purchases/create_purchase_screen.dart';
 import 'package:ims_pos_system/screens/reports/purchase_report_screen.dart';
+import 'package:ims_pos_system/pos/index.dart';
 
 class AppRoutes {
   static const String products = '/products';
@@ -64,6 +65,7 @@ class AppRoutes {
   static const String platformSettings = '/settings/platform';
   static const String userManagement = '/settings/users';
   static const String purchaseReport = '/reports/purchase';
+  static const String pos = '/pos';
 
   /// Parses a route string and returns the matching widget.
   static Widget? getContent(
@@ -140,6 +142,8 @@ class AppRoutes {
         return UserManagementScreen(onRouteSelected: callback);
       case purchaseReport:
         return PurchaseReportScreen(onRouteSelected: callback);
+      case pos:
+        return const POSWindow();
     }
 
     // Parameterized: /products/edit/:id
@@ -270,5 +274,6 @@ class AppRoutes {
         PlatformSettingsScreen(onRouteSelected: (r) {}),
     userManagement: (context) => UserManagementScreen(onRouteSelected: (r) {}),
     purchaseReport: (context) => PurchaseReportScreen(onRouteSelected: (r) {}),
+    pos: (context) => const POSWindow(),
   };
 }

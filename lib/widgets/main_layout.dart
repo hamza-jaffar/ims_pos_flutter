@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:ims_pos_system/app_routes.dart';
 import 'package:ims_pos_system/const/app_colors.dart';
+import 'package:ims_pos_system/pos/pos_window_launcher_stub.dart'
+    if (dart.library.io) 'package:ims_pos_system/pos/pos_window_launcher.dart';
 import 'package:ims_pos_system/widgets/app_header.dart';
 import 'package:ims_pos_system/widgets/app_sidebar.dart';
 
@@ -40,6 +42,11 @@ class _MainLayoutState extends State<MainLayout> {
 
   void _updateRoute(String route) {
     if (route == _activeRoute) return;
+    if (route == AppRoutes.pos) {
+      POSWindowLauncher.openWindow();
+      return;
+    }
+
     final routeWidget = AppRoutes.getContent(
       route,
       onRouteSelected: _updateRoute,

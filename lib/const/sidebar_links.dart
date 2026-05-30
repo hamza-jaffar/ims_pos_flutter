@@ -90,6 +90,19 @@ const sidebarLinks = [
 
   AppSidebarLink(
     icon: Icons.layers_outlined,
+    name: 'Reports',
+    type: SidebarLinkType.group,
+    children: [
+      AppSidebarLink(
+        icon: Icons.assessment_outlined,
+        name: 'Purchase Report',
+        route: AppRoutes.purchaseReport,
+      ),
+    ],
+  ),
+
+  AppSidebarLink(
+    icon: Icons.layers_outlined,
     name: 'Peoples',
     type: SidebarLinkType.group,
     children: [
@@ -102,19 +115,6 @@ const sidebarLinks = [
         icon: Icons.people_alt_outlined,
         name: 'Customers',
         route: AppRoutes.customers,
-      ),
-    ],
-  ),
-
-  AppSidebarLink(
-    icon: Icons.layers_outlined,
-    name: 'Reports',
-    type: SidebarLinkType.group,
-    children: [
-      AppSidebarLink(
-        icon: Icons.assessment_outlined,
-        name: 'Purchase Report',
-        route: AppRoutes.purchaseReport,
       ),
     ],
   ),

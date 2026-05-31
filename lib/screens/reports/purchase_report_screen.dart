@@ -5,6 +5,7 @@ import 'package:ims_pos_system/services/purchase_service.dart';
 import 'package:ims_pos_system/services/platform_settings_service.dart';
 import 'package:ims_pos_system/services/excel_export_helper.dart';
 import 'package:ims_pos_system/services/pdf_export_helper.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 
 class PurchaseReportScreen extends StatefulWidget {
@@ -20,6 +21,7 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
   List<Purchase> _purchases = [];
   List<Purchase> _returns = [];
   bool _isLoading = true;
+  List<Map<String, dynamic>> _monthlyData = [];
 
   @override
   void initState() {
@@ -32,10 +34,38 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
     try {
       final purchases = await PurchaseService.instance.getAllByType('Purchase');
       final returns = await PurchaseService.instance.getAllByType('Return');
+
+      final now = DateTime.now();
+      final Map<String, Map<String, double>> monthlyMap = {};
+      for (int i = 5; i >= 0; i--) {
+        final d = DateTime(now.year, now.month - i, 1);
+        final key = DateFormat('MMM yy').format(d);
+        monthlyMap[key] = {'purchases': 0.0, 'returns': 0.0};
+      }
+
+      for (var p in purchases) {
+        final key = DateFormat('MMM yy').format(p.purchaseDate);
+        if (monthlyMap.containsKey(key)) {
+          monthlyMap[key]!['purchases'] = (monthlyMap[key]!['purchases'] ?? 0.0) + p.grandTotal;
+        }
+      }
+      for (var r in returns) {
+        final key = DateFormat('MMM yy').format(r.purchaseDate);
+        if (monthlyMap.containsKey(key)) {
+          monthlyMap[key]!['returns'] = (monthlyMap[key]!['returns'] ?? 0.0) + r.grandTotal;
+        }
+      }
+
+      List<Map<String, dynamic>> processedMonthly = [];
+      monthlyMap.forEach((k, v) {
+        processedMonthly.add({'period': k, 'purchases': v['purchases'], 'returns': v['returns']});
+      });
+
       if (mounted) {
         setState(() {
           _purchases = purchases;
           _returns = returns;
+          _monthlyData = processedMonthly;
           _isLoading = false;
         });
       }
@@ -72,10 +102,7 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
     setState(() => _isLoading = true);
     try {
       if (type == 'excel') {
-        await ExcelExportHelper.exportPurchaseList(
-          'Purchase Report',
-          _purchases,
-        );
+        await ExcelExportHelper.exportPurchaseList('Purchase Report', _purchases);
       } else if (type == 'pdf') {
         await PdfExportHelper.exportPurchaseList('Purchase Report', _purchases);
       }
@@ -101,6 +128,12 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
     }
   }
 
+  String _formatCompactNumber(double number) {
+    if (number >= 1000000) return '${(number / 1000000).toStringAsFixed(1)}M';
+    if (number >= 1000) return '${(number / 1000).toStringAsFixed(1)}K';
+    return number.toInt().toString();
+  }
+
   @override
   Widget build(BuildContext context) {
     final currency = PlatformSettingsService.instance.settings.currencySymbol;
@@ -123,8 +156,8 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
+                children: const [
+                  Text(
                     'Purchase Reports',
                     style: TextStyle(
                       fontSize: 20,
@@ -132,7 +165,7 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
                       color: AppColors.textMain,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: 4),
                   Text(
                     'Overview of all purchases and related transactions',
                     style: TextStyle(
@@ -150,17 +183,9 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
                     label: const Text('Export Excel'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
-                      side: const BorderSide(
-                        color: AppColors.primary,
-                        width: 1.5,
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                      side: const BorderSide(color: AppColors.primary, width: 1.5),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -170,17 +195,9 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
                     label: const Text('Export PDF'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
-                      side: const BorderSide(
-                        color: AppColors.primary,
-                        width: 1.5,
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                      side: const BorderSide(color: AppColors.primary, width: 1.5),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -201,7 +218,7 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
               Expanded(
                 child: _buildSummaryCard(
                   'Total Purchases',
-                  '$currency$purchaseTotal',
+                  '$currency${purchaseTotal.toStringAsFixed(2)}',
                   Colors.blue,
                   _purchases.length,
                 ),
@@ -210,7 +227,7 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
               Expanded(
                 child: _buildSummaryCard(
                   'Total Paid',
-                  '$currency$purchasePaid',
+                  '$currency${purchasePaid.toStringAsFixed(2)}',
                   Colors.green,
                   _countByStatus(_purchases, 'Paid'),
                 ),
@@ -219,17 +236,16 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
               Expanded(
                 child: _buildSummaryCard(
                   'Total Due',
-                  '$currency$purchaseDue',
+                  '$currency${purchaseDue.toStringAsFixed(2)}',
                   Colors.orange,
-                  _countByStatus(_purchases, 'Unpaid') +
-                      _countByStatus(_purchases, 'Partial'),
+                  _countByStatus(_purchases, 'Unpaid') + _countByStatus(_purchases, 'Partial'),
                 ),
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: _buildSummaryCard(
                   'Total Returns',
-                  '$currency$returnTotal',
+                  '$currency${returnTotal.toStringAsFixed(2)}',
                   Colors.red,
                   _returns.length,
                 ),
@@ -238,136 +254,265 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
           ),
           const SizedBox(height: 24),
 
-          // Payment Status Summary
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Payment Status Summary',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textMain,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatusSummary(
-                        'Paid',
-                        _countByStatus(_purchases, 'Paid'),
-                        AppColors.success,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildStatusSummary(
-                        'Unpaid',
-                        _countByStatus(_purchases, 'Unpaid'),
-                        AppColors.danger,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildStatusSummary(
-                        'Partial',
-                        _countByStatus(_purchases, 'Partial'),
-                        AppColors.warning,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          _buildPurchaseReturnsChart(),
+
           const SizedBox(height: 24),
 
-          // Fulfillment Status Summary
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Fulfillment Status Summary',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textMain,
+          // Top Suppliers and Purchases List side by side
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                flex: 1,
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Top Suppliers',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textMain),
+                      ),
+                      const SizedBox(height: 20),
+                      _buildTopSuppliersTable(currency),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildStatusSummary(
-                        'Received',
-                        _purchases.where((p) => p.status == 'Received').length,
-                        AppColors.success,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildStatusSummary(
-                        'Pending',
-                        _purchases.where((p) => p.status == 'Pending').length,
-                        AppColors.warning,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildStatusSummary(
-                        'Ordered',
-                        _purchases.where((p) => p.status == 'Ordered').length,
-                        AppColors.info,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 24),
+              Expanded(
+                flex: 2,
+                child: _buildPurchasesList(currency),
+              ),
+            ],
           ),
-          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
 
-          // Top Suppliers
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Top Suppliers',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textMain,
+  Widget _buildPurchaseReturnsChart() {
+    if (_monthlyData.isEmpty) return const SizedBox();
+
+    double maxY = 0;
+    for (var m in _monthlyData) {
+      if (m['purchases'] > maxY) maxY = m['purchases'];
+      if (m['returns'] > maxY) maxY = m['returns'];
+    }
+    if (maxY == 0) maxY = 100;
+
+    return Container(
+      height: 350,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Purchases & Returns (Last 6 Months)',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textMain),
+              ),
+              Row(
+                children: [
+                  _legendItem('Purchases', Colors.blue),
+                  const SizedBox(width: 16),
+                  _legendItem('Returns', Colors.red),
+                ],
+              )
+            ],
+          ),
+          const SizedBox(height: 32),
+          Expanded(
+            child: BarChart(
+              BarChartData(
+                maxY: maxY * 1.2,
+                barTouchData: BarTouchData(
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipColor: (group) => Colors.black87,
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                      return BarTooltipItem(
+                        '${_monthlyData[group.x.toInt()]['period']}\n${rod.toY.toStringAsFixed(2)}',
+                        const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      );
+                    },
                   ),
                 ),
-                const SizedBox(height: 20),
-                _buildTopSuppliersTable(currency),
-              ],
+                titlesData: FlTitlesData(
+                  show: true,
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      getTitlesWidget: (value, meta) {
+                        if (value >= 0 && value < _monthlyData.length) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              _monthlyData[value.toInt()]['period'],
+                              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                            ),
+                          );
+                        }
+                        return const Text('');
+                      },
+                    ),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 45,
+                      getTitlesWidget: (value, meta) {
+                        if (value == 0) return const Text('');
+                        return Text(
+                          _formatCompactNumber(value),
+                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        );
+                      },
+                    ),
+                  ),
+                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (value) => FlLine(color: AppColors.border, strokeWidth: 1),
+                ),
+                borderData: FlBorderData(show: false),
+                barGroups: List.generate(_monthlyData.length, (i) {
+                  return BarChartGroupData(
+                    x: i,
+                    barRods: [
+                      BarChartRodData(
+                        toY: _monthlyData[i]['purchases'],
+                        color: Colors.blue,
+                        width: 14,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      BarChartRodData(
+                        toY: _monthlyData[i]['returns'],
+                        color: Colors.red,
+                        width: 14,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ],
+                  );
+                }),
+              ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _legendItem(String label, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
+        ),
+        const SizedBox(width: 6),
+        Text(label, style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+      ],
+    );
+  }
+
+  Widget _buildPurchasesList(String currency) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Recent Purchases',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textMain),
+          ),
+          const SizedBox(height: 12),
+          _purchases.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Text('No purchases to display', style: TextStyle(color: AppColors.textSecondary)),
+                  ),
+                )
+              : ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _purchases.length.clamp(0, 50),
+                  separatorBuilder: (_, __) => Divider(color: AppColors.border),
+                  itemBuilder: (ctx, i) {
+                    final p = _purchases[i];
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(p.referenceNo, style: const TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: Text('${p.items.length} items • ${DateFormat('yyyy-MM-dd').format(p.purchaseDate)}'),
+                      trailing: Text(
+                        '$currency${p.grandTotal.toStringAsFixed(2)}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
+                      onTap: () => _showPurchaseItems(p, currency),
+                    );
+                  },
+                ),
+        ],
+      ),
+    );
+  }
+
+  void _showPurchaseItems(Purchase purchase, String currency) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text('Items - ${purchase.referenceNo}'),
+          content: SizedBox(
+            width: 400,
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: purchase.items.length,
+              separatorBuilder: (_, __) => const Divider(),
+              itemBuilder: (c, i) {
+                final it = purchase.items[i];
+                return ListTile(
+                  title: Text(it.product?.name ?? 'Unknown'),
+                  subtitle: Text(
+                    'Qty: ${it.quantity} • Unit: $currency${it.unitCost.toStringAsFixed(2)}',
+                  ),
+                  trailing: Text(
+                    '$currency${it.subtotal.toStringAsFixed(2)}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                );
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -387,68 +532,19 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
             children: [
               Text(
                 title,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
               ),
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withAlpha(30),
-                  borderRadius: BorderRadius.circular(8),
-                ),
+                decoration: BoxDecoration(color: color.withAlpha(30), borderRadius: BorderRadius.circular(8)),
                 child: Icon(Icons.trending_up, color: color, size: 18),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textMain,
-            ),
-          ),
+          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textMain)),
           const SizedBox(height: 8),
-          Text(
-            '$count transactions',
-            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusSummary(String label, int count, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withAlpha(15),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withAlpha(50)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '$count',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
+          Text('$count transactions', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
         ],
       ),
     );
@@ -472,17 +568,13 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
       }
     }
 
-    final sortedSuppliers = supplierMap.values.toList()
-      ..sort((a, b) => b.$2.compareTo(a.$2));
+    final sortedSuppliers = supplierMap.values.toList()..sort((a, b) => b.$2.compareTo(a.$2));
 
     if (sortedSuppliers.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
-          child: Text(
-            'No purchase data available',
-            style: TextStyle(color: AppColors.textSecondary),
-          ),
+          child: Text('No data available', style: TextStyle(color: AppColors.textSecondary)),
         ),
       );
     }
@@ -497,41 +589,9 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
           ),
           child: Row(
             children: [
-              Expanded(
-                flex: 3,
-                child: Text(
-                  'Supplier',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-              Expanded(
-                flex: 2,
-                child: Text(
-                  'Total Amount',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                  ),
-                  textAlign: TextAlign.right,
-                ),
-              ),
-              Expanded(
-                flex: 1,
-                child: Text(
-                  'Count',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textSecondary,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+              Expanded(flex: 3, child: Text('Supplier', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary))),
+              Expanded(flex: 2, child: Text('Total', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary), textAlign: TextAlign.right)),
+              Expanded(flex: 1, child: Text('Count', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary), textAlign: TextAlign.center)),
             ],
           ),
         ),
@@ -539,44 +599,16 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: sortedSuppliers.length.clamp(0, 10),
-          separatorBuilder: (_, __) =>
-              Divider(height: 1, color: AppColors.border),
+          separatorBuilder: (_, _) => Divider(height: 1, color: AppColors.border),
           itemBuilder: (_, index) {
             final supplier = sortedSuppliers[index];
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  Expanded(
-                    flex: 3,
-                    child: Text(
-                      supplier.$1,
-                      style: TextStyle(fontSize: 14, color: AppColors.textMain),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      '$currency${supplier.$2.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textMain,
-                      ),
-                      textAlign: TextAlign.right,
-                    ),
-                  ),
-                  Expanded(
-                    flex: 1,
-                    child: Text(
-                      '${supplier.$3}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textSecondary,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
+                  Expanded(flex: 3, child: Text(supplier.$1, style: const TextStyle(fontSize: 14, color: AppColors.textMain))),
+                  Expanded(flex: 2, child: Text('$currency${supplier.$2.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textMain), textAlign: TextAlign.right)),
+                  Expanded(flex: 1, child: Text('${supplier.$3}', style: TextStyle(fontSize: 14, color: AppColors.textSecondary), textAlign: TextAlign.center)),
                 ],
               ),
             );

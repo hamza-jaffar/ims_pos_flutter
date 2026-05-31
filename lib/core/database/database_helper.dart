@@ -15,6 +15,8 @@ import 'package:ims_pos_system/core/database/tables/customer_table.dart';
 import 'package:ims_pos_system/core/database/tables/supplier_table.dart';
 import 'package:ims_pos_system/core/database/tables/purchase_table.dart';
 import 'package:ims_pos_system/core/database/tables/purchase_item_table.dart';
+import 'package:ims_pos_system/core/database/tables/sale_table.dart';
+import 'package:ims_pos_system/core/database/tables/sale_item_table.dart';
 import 'package:ims_pos_system/core/database/tables/platform_settings_table.dart';
 import 'package:ims_pos_system/models/user.dart';
 
@@ -23,7 +25,7 @@ class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
 
   static const String _databaseName = 'ims_pos_system.db';
-  static const int _databaseVersion = 11;
+  static const int _databaseVersion = 14;
 
   static const String userTable = UserTable.tableName;
   static const String categoryTable = CategoryTable.tableName;
@@ -36,6 +38,8 @@ class DatabaseHelper {
   static const String customerTable = CustomerTable.tableName;
   static const String purchaseTable = PurchaseTable.tableName;
   static const String purchaseItemTable = PurchaseItemTable.tableName;
+  static const String saleTable = SaleTable.tableName;
+  static const String saleItemTable = SaleItemTable.tableName;
 
   Database? _database;
 
@@ -97,6 +101,8 @@ class DatabaseHelper {
     await CustomerTable.createTable(db);
     await PurchaseTable.createTable(db);
     await PurchaseItemTable.createTable(db);
+    await SaleTable.createTable(db);
+    await SaleItemTable.createTable(db);
     await _ensureDefaultAdmin(db);
   }
 
@@ -132,6 +138,17 @@ class DatabaseHelper {
     if (oldVersion < 11) {
       await PurchaseTable.ensureTable(db);
       await PurchaseItemTable.ensureTable(db);
+      await SaleTable.ensureTable(db);
+      await SaleItemTable.ensureTable(db);
+    }
+    if (oldVersion < 12) {
+      await PurchaseTable.migrateV12(db);
+    }
+    if (oldVersion < 13) {
+      await PurchaseTable.migrateV13(db);
+    }
+    if (oldVersion < 14) {
+      await SaleTable.migrateV14(db);
     }
   }
 
@@ -165,6 +182,9 @@ class DatabaseHelper {
     await CustomerTable.ensureTable(db);
     await PurchaseTable.ensureTable(db);
     await PurchaseItemTable.ensureTable(db);
+    await SaleTable.ensureTable(db);
+    await SaleTable.migrateV14(db);
+    await SaleItemTable.ensureTable(db);
     await _ensureDefaultAdmin(db);
   }
 

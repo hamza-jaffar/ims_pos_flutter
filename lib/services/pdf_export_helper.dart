@@ -207,4 +207,94 @@ class PdfExportHelper {
       name: '${purchase.referenceNo.toLowerCase()}_invoice.pdf',
     );
   }
+
+  static Future<void> exportSystemReport(String title, Map<String, dynamic> summaryData) async {
+    final pdf = pw.Document();
+    final timeFormat = DateFormat('yyyy-MM-dd HH:mm');
+
+    final double totalRevenue = summaryData['totalRevenue'];
+    final double totalSpend = summaryData['totalSpend'];
+    final double totalProfit = summaryData['totalProfit'];
+    final double totalReturns = summaryData['totalReturns'];
+    final List<Map<String, dynamic>> monthlyData = summaryData['monthlyData'];
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.all(32),
+        build: (context) => [
+          pw.Header(
+            level: 0,
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text(title, style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold, color: PdfColors.blue900)),
+                pw.Text('Generated: ${timeFormat.format(DateTime.now())}', style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600)),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 20),
+          pw.Text('System Overview', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)),
+          pw.SizedBox(height: 10),
+          pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+            children: [
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                children: [
+                  pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Metric', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                  pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Amount', style: pw.TextStyle(fontWeight: pw.FontWeight.bold))),
+                ],
+              ),
+              pw.TableRow(
+                children: [
+                  pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Total Revenue (Sales)')),
+                  pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(totalRevenue.toStringAsFixed(2))),
+                ],
+              ),
+              pw.TableRow(
+                children: [
+                  pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Total Spend (Purchases)')),
+                  pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(totalSpend.toStringAsFixed(2))),
+                ],
+              ),
+              pw.TableRow(
+                children: [
+                  pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Gross Profit')),
+                  pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(totalProfit.toStringAsFixed(2))),
+                ],
+              ),
+              pw.TableRow(
+                children: [
+                  pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text('Total Returns (Sales + Purchases)')),
+                  pw.Padding(padding: const pw.EdgeInsets.all(8), child: pw.Text(totalReturns.toStringAsFixed(2))),
+                ],
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 30),
+          pw.Text('Monthly Performance (Last 6 Months)', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)),
+          pw.SizedBox(height: 10),
+          pw.TableHelper.fromTextArray(
+            headers: ['Period', 'Revenue', 'Spend'],
+            data: monthlyData.map((m) => [
+              m['period'].toString(),
+              (m['sales'] as double).toStringAsFixed(2),
+              (m['spend'] as double).toStringAsFixed(2),
+            ]).toList(),
+            border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white, fontSize: 10),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.blue800),
+            cellAlignment: pw.Alignment.centerLeft,
+            cellHeight: 22,
+          ),
+        ],
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (format) => pdf.save(),
+      name: 'system_dashboard_report.pdf',
+    );
+  }
 }

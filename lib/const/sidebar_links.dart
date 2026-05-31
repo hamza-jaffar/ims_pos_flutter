@@ -5,6 +5,11 @@ import 'package:ims_pos_system/models/app_sidebar_link.dart';
 
 const sidebarLinks = [
   AppSidebarLink(
+    icon: Icons.dashboard_outlined,
+    name: 'Dashboard',
+    route: AppRoutes.dashboard,
+  ),
+  AppSidebarLink(
     icon: Icons.layers_outlined,
     name: 'Main',
     type: SidebarLinkType.group,
@@ -61,6 +66,16 @@ const sidebarLinks = [
         name: 'Pos',
         route: AppRoutes.pos,
       ),
+      AppSidebarLink(
+        icon: Icons.history,
+        name: 'Sales History',
+        route: AppRoutes.salesHistory,
+      ),
+      AppSidebarLink(
+        icon: Icons.receipt_long_outlined,
+        name: 'Invoices',
+        route: AppRoutes.invoices,
+      ),
     ],
   ),
 
@@ -105,6 +120,11 @@ const sidebarLinks = [
     name: 'Reports',
     type: SidebarLinkType.group,
     children: [
+      AppSidebarLink(
+        icon: Icons.trending_up,
+        name: 'Sales Report',
+        route: AppRoutes.salesReport,
+      ),
       AppSidebarLink(
         icon: Icons.assessment_outlined,
         name: 'Purchase Report',

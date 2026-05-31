@@ -5,10 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:ims_pos_system/app_routes.dart';
 import 'package:ims_pos_system/const/app_colors.dart';
+import 'package:ims_pos_system/models/user.dart';
 import 'package:ims_pos_system/pos/index.dart';
 import 'package:ims_pos_system/pos/pos_window_launcher_stub.dart'
     if (dart.library.io) 'package:ims_pos_system/pos/pos_window_launcher.dart';
-import 'package:ims_pos_system/screens/login_screen.dart';
+import 'package:ims_pos_system/screens/home_screen.dart';
 import 'package:ims_pos_system/services/platform_settings_service.dart';
 
 void main() async {
@@ -76,7 +77,14 @@ class MyApp extends StatelessWidget {
           surface: AppColors.background,
         ),
       ),
-      home: const LoginScreen(),
+      home: HomeScreen(
+        user: User(
+          id: null,
+          name: 'Administrator',
+          email: 'admin@example.com',
+          password: 'password123',
+        ),
+      ),
     );
   }
 }

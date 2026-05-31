@@ -102,15 +102,11 @@ class _MainLayoutState extends State<MainLayout> {
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      return SingleChildScrollView(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: constraints.maxHeight,
-                          ),
-                          child: Container(
-                            padding: const EdgeInsets.all(24.0),
-                            child: _activeChild,
-                          ),
+                      return SizedBox(
+                        height: constraints.maxHeight,
+                        child: Container(
+                          padding: const EdgeInsets.all(24.0),
+                          child: _activeChild,
                         ),
                       );
                     },

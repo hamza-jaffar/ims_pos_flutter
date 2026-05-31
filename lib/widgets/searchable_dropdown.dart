@@ -38,7 +38,9 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
 
   String? get _selectedLabel {
     if (widget.selectedValue == null) return null;
-    final match = widget.items.where((i) => i.value == widget.selectedValue).toList();
+    final match = widget.items
+        .where((i) => i.value == widget.selectedValue)
+        .toList();
     return match.isEmpty ? null : match.first.label;
   }
 
@@ -60,7 +62,7 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
     }
     if (selected != null) {
       state.didChange(selected as T);
-      widget.onChanged(selected as T);
+      widget.onChanged(selected);
       if (widget.isRequired) setState(() => _errorText = null);
     }
   }
@@ -93,14 +95,15 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
             GestureDetector(
               onTap: () => _openSearchDialog(state),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: hasError
-                        ? AppColors.danger
-                        : AppColors.border,
+                    color: hasError ? AppColors.danger : AppColors.border,
                     width: hasError ? 1.5 : 1.0,
                   ),
                 ),
@@ -111,7 +114,9 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
                         label ?? widget.hint,
                         style: TextStyle(
                           fontSize: 14,
-                          color: label != null ? AppColors.textMain : AppColors.textSecondary,
+                          color: label != null
+                              ? AppColors.textMain
+                              : AppColors.textSecondary,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -125,12 +130,25 @@ class _SearchableDropdownState<T> extends State<SearchableDropdown<T>> {
                           setState(() {});
                         },
                         child: const Padding(
-                          padding: EdgeInsets.only(left: 12, right: 4, top: 4, bottom: 4),
-                          child: Icon(Icons.close, size: 18, color: AppColors.textSecondary),
+                          padding: EdgeInsets.only(
+                            left: 12,
+                            right: 4,
+                            top: 4,
+                            bottom: 4,
+                          ),
+                          child: Icon(
+                            Icons.close,
+                            size: 18,
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       )
                     else
-                      const Icon(Icons.search, size: 18, color: AppColors.textSecondary),
+                      const Icon(
+                        Icons.search,
+                        size: 18,
+                        color: AppColors.textSecondary,
+                      ),
                   ],
                 ),
               ),
@@ -191,7 +209,9 @@ class _SearchDialogState<T> extends State<_SearchDialog<T>> {
     setState(() {
       _filtered = q.isEmpty
           ? widget.items
-          : widget.items.where((i) => i.label.toLowerCase().contains(q)).toList();
+          : widget.items
+                .where((i) => i.label.toLowerCase().contains(q))
+                .toList();
     });
   }
 
@@ -239,15 +259,29 @@ class _SearchDialogState<T> extends State<_SearchDialog<T>> {
                 style: const TextStyle(fontSize: 14, color: AppColors.textMain),
                 decoration: InputDecoration(
                   hintText: 'Search ${widget.label.toLowerCase()}...',
-                  hintStyle: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
-                  prefixIcon: const Icon(Icons.search, size: 20, color: AppColors.textSecondary),
+                  hintStyle: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    size: 20,
+                    color: AppColors.textSecondary,
+                  ),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear, size: 16, color: AppColors.textSecondary),
+                          icon: const Icon(
+                            Icons.clear,
+                            size: 16,
+                            color: AppColors.textSecondary,
+                          ),
                           onPressed: () => _searchController.clear(),
                         )
                       : null,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                  contentPadding: const EdgeInsets.symmetric(
+                    vertical: 0,
+                    horizontal: 16,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: const BorderSide(color: AppColors.border),
@@ -258,7 +292,10 @@ class _SearchDialogState<T> extends State<_SearchDialog<T>> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                    borderSide: const BorderSide(
+                      color: AppColors.primary,
+                      width: 1.5,
+                    ),
                   ),
                   filled: true,
                   fillColor: AppColors.background,
@@ -270,7 +307,10 @@ class _SearchDialogState<T> extends State<_SearchDialog<T>> {
               InkWell(
                 onTap: () => Navigator.of(context).pop(_ClearValue()),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
                   decoration: const BoxDecoration(
                     border: Border(bottom: BorderSide(color: AppColors.border)),
                   ),
@@ -295,12 +335,18 @@ class _SearchDialogState<T> extends State<_SearchDialog<T>> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.search_off, size: 40,
-                                color: AppColors.textSecondary.withAlpha(100)),
+                            Icon(
+                              Icons.search_off,
+                              size: 40,
+                              color: AppColors.textSecondary.withAlpha(100),
+                            ),
                             const SizedBox(height: 8),
                             const Text(
                               'No results found',
-                              style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
+                              ),
                             ),
                           ],
                         ),
@@ -321,12 +367,20 @@ class _SearchDialogState<T> extends State<_SearchDialog<T>> {
                             item.label,
                             style: TextStyle(
                               fontSize: 14,
-                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                              color: isSelected ? AppColors.primary : AppColors.textMain,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                              color: isSelected
+                                  ? AppColors.primary
+                                  : AppColors.textMain,
                             ),
                           ),
                           trailing: isSelected
-                              ? const Icon(Icons.check, size: 18, color: AppColors.primary)
+                              ? const Icon(
+                                  Icons.check,
+                                  size: 18,
+                                  color: AppColors.primary,
+                                )
                               : null,
                           onTap: () => Navigator.of(context).pop(item.value),
                         );

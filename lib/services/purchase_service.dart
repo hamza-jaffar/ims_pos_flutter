@@ -19,6 +19,8 @@ class PurchaseService {
     String prefix = 'PUR';
     if (type == 'Order') prefix = 'PO';
     if (type == 'Return') prefix = 'PR';
+    if (type == 'Sale') prefix = 'SAL';
+    if (type == 'SaleReturn') prefix = 'SRN';
 
     final result = await db.rawQuery(
       "SELECT reference_no FROM $_table WHERE reference_no LIKE '$prefix-%' ORDER BY reference_no DESC LIMIT 1",
@@ -55,7 +57,6 @@ class PurchaseService {
         itemMap['purchase_id'] = purchaseId;
         await txn.insert(_itemTable, itemMap);
 
-        // Update product stock if status is Received (or Returned)
         if (purchase.type == 'Purchase' && purchase.status == 'Received') {
           await txn.rawUpdate(
             'UPDATE $_productTable SET quantity = quantity + ? WHERE id = ?',
@@ -64,6 +65,17 @@ class PurchaseService {
         } else if (purchase.type == 'Return' && purchase.status == 'Returned') {
           await txn.rawUpdate(
             'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ?',
+            [item.quantity, item.productId],
+          );
+        } else if (purchase.type == 'Sale' && purchase.status == 'Completed') {
+          await txn.rawUpdate(
+            'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ?',
+            [item.quantity, item.productId],
+          );
+        } else if (purchase.type == 'SaleReturn' &&
+            purchase.status == 'Completed') {
+          await txn.rawUpdate(
+            'UPDATE $_productTable SET quantity = quantity + ? WHERE id = ?',
             [item.quantity, item.productId],
           );
         }
@@ -77,6 +89,8 @@ class PurchaseService {
     String prefix = 'PUR';
     if (type == 'Order') prefix = 'PO';
     if (type == 'Return') prefix = 'PR';
+    if (type == 'Sale') prefix = 'SAL';
+    if (type == 'SaleReturn') prefix = 'SRN';
 
     final result = await txn.rawQuery(
       "SELECT reference_no FROM $_table WHERE reference_no LIKE '$prefix-%' ORDER BY id DESC LIMIT 1",
@@ -139,7 +153,8 @@ class PurchaseService {
 
     final itemMaps = await db.rawQuery(
       '''
-      SELECT i.*, p.name as product_name, p.code as product_code
+      SELECT i.*, p.name as product_name, p.code as product_code,
+             p.quantity as current_qty
       FROM $_itemTable i
       JOIN $_productTable p ON i.product_id = p.id
       WHERE i.purchase_id = ?
@@ -148,14 +163,64 @@ class PurchaseService {
     );
 
     List<PurchaseItem> items = itemMaps.map((im) {
-      return PurchaseItem.fromMap(
-        im,
-        product: Product(
-          id: im['product_id'] as int,
-          name: im['product_name'] as String? ?? 'Unknown',
-          code: im['product_code'] as String? ?? '',
-        ),
+      final productWithPrice = Product(
+        id: im['product_id'] as int,
+        name: im['product_name'] as String? ?? 'Unknown',
+        code: im['product_code'] as String? ?? '',
+        sellingPrice: (im['unit_cost'] as num).toDouble(),
+        quantity: (im['current_qty'] as num?)?.toInt() ?? 0,
       );
+      return PurchaseItem.fromMap(im, product: productWithPrice);
+    }).toList();
+
+    return Purchase.fromMap(purchaseMap, supplier: supplier, items: items);
+  }
+
+  Future<Purchase?> getByReference(String referenceNo) async {
+    final db = await _db.database;
+
+    final maps = await db.rawQuery(
+      '''
+      SELECT p.*, s.name as supplier_name 
+      FROM $_table p 
+      LEFT JOIN $_supplierTable s ON p.supplier_id = s.id 
+      WHERE p.reference_no = ?
+    ''',
+      [referenceNo],
+    );
+
+    if (maps.isEmpty) return null;
+
+    final purchaseMap = maps.first;
+    Supplier? supplier;
+    if (purchaseMap['supplier_id'] != null) {
+      supplier = Supplier(
+        id: purchaseMap['supplier_id'] as int,
+        name: purchaseMap['supplier_name'] as String? ?? 'Unknown',
+      );
+    }
+
+    final id = purchaseMap['id'] as int;
+    final itemMaps = await db.rawQuery(
+      '''
+      SELECT i.*, p.name as product_name, p.code as product_code,
+             p.quantity as current_qty
+      FROM $_itemTable i
+      JOIN $_productTable p ON i.product_id = p.id
+      WHERE i.purchase_id = ?
+    ''',
+      [id],
+    );
+
+    List<PurchaseItem> items = itemMaps.map((im) {
+      final productWithPrice = Product(
+        id: im['product_id'] as int,
+        name: im['product_name'] as String? ?? 'Unknown',
+        code: im['product_code'] as String? ?? '',
+        sellingPrice: (im['unit_cost'] as num).toDouble(),
+        quantity: (im['current_qty'] as num?)?.toInt() ?? 0,
+      );
+      return PurchaseItem.fromMap(im, product: productWithPrice);
     }).toList();
 
     return Purchase.fromMap(purchaseMap, supplier: supplier, items: items);
@@ -164,17 +229,16 @@ class PurchaseService {
   Future<int> delete(int id) async {
     final db = await _db.database;
     return await db.transaction((txn) async {
-      // Get purchase to check status
       final maps = await txn.query(_table, where: 'id = ?', whereArgs: [id]);
       if (maps.isNotEmpty) {
         final p = Purchase.fromMap(maps.first);
-        // If it was received, we might need to reverse stock (omitted for brevity, or we just let it be, but ideally reverse)
+        final items = await txn.query(
+          _itemTable,
+          where: 'purchase_id = ?',
+          whereArgs: [id],
+        );
+
         if (p.type == 'Purchase' && p.status == 'Received') {
-          final items = await txn.query(
-            _itemTable,
-            where: 'purchase_id = ?',
-            whereArgs: [id],
-          );
           for (var item in items) {
             await txn.rawUpdate(
               'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ?',
@@ -182,14 +246,23 @@ class PurchaseService {
             );
           }
         } else if (p.type == 'Return' && p.status == 'Returned') {
-          final items = await txn.query(
-            _itemTable,
-            where: 'purchase_id = ?',
-            whereArgs: [id],
-          );
           for (var item in items) {
             await txn.rawUpdate(
               'UPDATE $_productTable SET quantity = quantity + ? WHERE id = ?',
+              [item['quantity'], item['product_id']],
+            );
+          }
+        } else if (p.type == 'Sale' && p.status == 'Completed') {
+          for (var item in items) {
+            await txn.rawUpdate(
+              'UPDATE $_productTable SET quantity = quantity + ? WHERE id = ?',
+              [item['quantity'], item['product_id']],
+            );
+          }
+        } else if (p.type == 'SaleReturn' && p.status == 'Completed') {
+          for (var item in items) {
+            await txn.rawUpdate(
+              'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ?',
               [item['quantity'], item['product_id']],
             );
           }
@@ -256,7 +329,6 @@ class PurchaseService {
 
       // Stock adjustment for Purchase/Order
       if (oldPurchase.type == 'Purchase' || oldPurchase.type == 'Order') {
-        // Transition to Received (add stock)
         if (oldPurchase.status != 'Received' && updatedStatus == 'Received') {
           final items = await txn.query(
             _itemTable,
@@ -269,9 +341,7 @@ class PurchaseService {
               [item['quantity'], item['product_id']],
             );
           }
-        }
-        // Transition away from Received (remove stock)
-        else if (oldPurchase.status == 'Received' &&
+        } else if (oldPurchase.status == 'Received' &&
             updatedStatus != 'Received') {
           final items = await txn.query(
             _itemTable,
@@ -288,7 +358,6 @@ class PurchaseService {
       }
       // Stock adjustment for Return
       else if (oldPurchase.type == 'Return') {
-        // Transition to Returned (remove stock)
         if (oldPurchase.status != 'Returned' && updatedStatus == 'Returned') {
           final items = await txn.query(
             _itemTable,
@@ -301,9 +370,7 @@ class PurchaseService {
               [item['quantity'], item['product_id']],
             );
           }
-        }
-        // Transition away from Returned (add stock)
-        else if (oldPurchase.status == 'Returned' &&
+        } else if (oldPurchase.status == 'Returned' &&
             updatedStatus != 'Returned') {
           final items = await txn.query(
             _itemTable,
@@ -313,6 +380,64 @@ class PurchaseService {
           for (var item in items) {
             await txn.rawUpdate(
               'UPDATE $_productTable SET quantity = quantity + ? WHERE id = ?',
+              [item['quantity'], item['product_id']],
+            );
+          }
+        }
+      }
+      // Stock adjustment for Sale
+      else if (oldPurchase.type == 'Sale') {
+        if (oldPurchase.status != 'Completed' && updatedStatus == 'Completed') {
+          final items = await txn.query(
+            _itemTable,
+            where: 'purchase_id = ?',
+            whereArgs: [id],
+          );
+          for (var item in items) {
+            await txn.rawUpdate(
+              'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ?',
+              [item['quantity'], item['product_id']],
+            );
+          }
+        } else if (oldPurchase.status == 'Completed' &&
+            updatedStatus != 'Completed') {
+          final items = await txn.query(
+            _itemTable,
+            where: 'purchase_id = ?',
+            whereArgs: [id],
+          );
+          for (var item in items) {
+            await txn.rawUpdate(
+              'UPDATE $_productTable SET quantity = quantity + ? WHERE id = ?',
+              [item['quantity'], item['product_id']],
+            );
+          }
+        }
+      }
+      // Stock adjustment for SaleReturn
+      else if (oldPurchase.type == 'SaleReturn') {
+        if (oldPurchase.status != 'Completed' && updatedStatus == 'Completed') {
+          final items = await txn.query(
+            _itemTable,
+            where: 'purchase_id = ?',
+            whereArgs: [id],
+          );
+          for (var item in items) {
+            await txn.rawUpdate(
+              'UPDATE $_productTable SET quantity = quantity + ? WHERE id = ?',
+              [item['quantity'], item['product_id']],
+            );
+          }
+        } else if (oldPurchase.status == 'Completed' &&
+            updatedStatus != 'Completed') {
+          final items = await txn.query(
+            _itemTable,
+            where: 'purchase_id = ?',
+            whereArgs: [id],
+          );
+          for (var item in items) {
+            await txn.rawUpdate(
+              'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ?',
               [item['quantity'], item['product_id']],
             );
           }

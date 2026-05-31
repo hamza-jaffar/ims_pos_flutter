@@ -339,7 +339,7 @@ class _RoomScreenState extends State<RoomScreen> {
             physics: const NeverScrollableScrollPhysics(),
             shrinkWrap: true,
             itemCount: _filtered.length,
-            separatorBuilder: (_, __) =>
+            separatorBuilder: (_, _) =>
                 const Divider(height: 1, color: AppColors.border),
             itemBuilder: (_, index) {
               final room = _filtered[index];

@@ -442,13 +442,15 @@ class _EditProductScreenState extends State<EditProductScreen> {
             if (v != null && v.trim().isNotEmpty) {
               if (isNumeric) {
                 final n = int.tryParse(v.trim());
-                if (n == null || n < 0)
+                if (n == null || n < 0) {
                   return 'Must be a non-negative whole number.';
+                }
               }
               if (isDecimal) {
                 final d = double.tryParse(v.trim());
-                if (d == null || d < 0)
+                if (d == null || d < 0) {
                   return 'Must be a valid positive number.';
+                }
               }
             }
             return null;
@@ -478,8 +480,9 @@ class _EditProductScreenState extends State<EditProductScreen> {
           validator: (v) {
             if (v != null && v.trim().isNotEmpty) {
               final disc = double.tryParse(v.trim());
-              if (disc == null || disc < 0)
+              if (disc == null || disc < 0) {
                 return 'Must be a valid positive number.';
+              }
               final selling =
                   double.tryParse(_sellingPriceController.text.trim()) ?? 0.0;
               if (disc >= selling) {

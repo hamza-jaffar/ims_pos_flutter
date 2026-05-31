@@ -78,7 +78,7 @@ class _PlatformSettingsScreenState extends State<PlatformSettingsScreen>
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.12),
+                color: AppColors.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(
@@ -156,8 +156,9 @@ class _PlatformSettingsScreenState extends State<PlatformSettingsScreen>
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius:
-                const BorderRadius.vertical(bottom: Radius.circular(12)),
+            borderRadius: const BorderRadius.vertical(
+              bottom: Radius.circular(12),
+            ),
             border: Border(
               left: BorderSide(color: AppColors.border),
               right: BorderSide(color: AppColors.border),
@@ -165,7 +166,7 @@ class _PlatformSettingsScreenState extends State<PlatformSettingsScreen>
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -454,18 +455,21 @@ class _GeneralTabState extends State<_GeneralTab> {
               controller: controller,
               decoration: InputDecoration(
                 hintText: 'C:\\images\\logo.png',
-                hintStyle: TextStyle(
-                    fontSize: 13, color: Colors.grey.shade400),
+                hintStyle: TextStyle(fontSize: 13, color: Colors.grey.shade400),
                 contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 10),
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                   borderSide: const BorderSide(color: AppColors.border),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide:
-                      const BorderSide(color: AppColors.primary, width: 1.5),
+                  borderSide: const BorderSide(
+                    color: AppColors.primary,
+                    width: 1.5,
+                  ),
                 ),
               ),
             ),
@@ -486,7 +490,8 @@ class _GeneralTabState extends State<_GeneralTab> {
               backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
+                borderRadius: BorderRadius.circular(8),
+              ),
               elevation: 0,
             ),
             child: const Text('Apply'),
@@ -633,8 +638,9 @@ class _CurrencyTaxTabState extends State<_CurrencyTaxTab> {
                     label: 'Tax Rate (%)',
                     controller: _taxRateController,
                     hint: 'e.g. 15',
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
                     ],
@@ -658,20 +664,21 @@ class _CurrencyTaxTabState extends State<_CurrencyTaxTab> {
                 color: AppColors.infoLight,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                    color: AppColors.info.withOpacity(0.3)),
+                  color: AppColors.info.withValues(alpha: 0.3),
+                ),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline,
-                      size: 16, color: AppColors.info),
+                  Icon(Icons.info_outline, size: 16, color: AppColors.info),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'The tax rate set here will be used as the default on new invoices. '
                       'You can override it per invoice.',
                       style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.info.withOpacity(0.85)),
+                        fontSize: 12,
+                        color: AppColors.info.withValues(alpha: 0.85),
+                      ),
                     ),
                   ),
                 ],
@@ -691,10 +698,7 @@ class _CurrencyPreviewCard extends StatefulWidget {
   final TextEditingController symbol;
   final TextEditingController code;
 
-  const _CurrencyPreviewCard({
-    required this.symbol,
-    required this.code,
-  });
+  const _CurrencyPreviewCard({required this.symbol, required this.code});
 
   @override
   State<_CurrencyPreviewCard> createState() => _CurrencyPreviewCardState();
@@ -726,7 +730,7 @@ class _CurrencyPreviewCardState extends State<_CurrencyPreviewCard> {
       decoration: BoxDecoration(
         color: AppColors.primaryLight,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.primary.withOpacity(0.25)),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
@@ -734,7 +738,7 @@ class _CurrencyPreviewCardState extends State<_CurrencyPreviewCard> {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.15),
+              color: AppColors.primary.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -756,7 +760,7 @@ class _CurrencyPreviewCardState extends State<_CurrencyPreviewCard> {
                 'Currency Preview',
                 style: TextStyle(
                   fontSize: 11,
-                  color: AppColors.primary.withOpacity(0.7),
+                  color: AppColors.primary.withValues(alpha: 0.7),
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -773,7 +777,7 @@ class _CurrencyPreviewCardState extends State<_CurrencyPreviewCard> {
                 code,
                 style: TextStyle(
                   fontSize: 12,
-                  color: AppColors.primary.withOpacity(0.7),
+                  color: AppColors.primary.withValues(alpha: 0.7),
                 ),
               ),
             ],
@@ -973,11 +977,12 @@ Widget _buildField({
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
         decoration: _inputDecoration(hint, prefixIcon: icon),
-        validator: validator ??
+        validator:
+            validator ??
             (required
                 ? (v) => (v == null || v.trim().isEmpty)
-                    ? 'This field is required.'
-                    : null
+                      ? 'This field is required.'
+                      : null
                 : null),
       ),
       if (helperText != null) ...[
@@ -1010,18 +1015,17 @@ Widget _buildDropdown({
       ),
       const SizedBox(height: 7),
       DropdownButtonFormField<String>(
-        value: value,
+        initialValue: value,
         isExpanded: true,
         decoration: _inputDecoration(''),
-        style: const TextStyle(
-          fontSize: 14,
-          color: AppColors.textMain,
-        ),
+        style: const TextStyle(fontSize: 14, color: AppColors.textMain),
         items: items
-            .map((e) => DropdownMenuItem(
-                  value: e,
-                  child: Text(e, style: const TextStyle(fontSize: 13)),
-                ))
+            .map(
+              (e) => DropdownMenuItem(
+                value: e,
+                child: Text(e, style: const TextStyle(fontSize: 13)),
+              ),
+            )
             .toList(),
         onChanged: onChanged,
       ),
@@ -1054,9 +1058,7 @@ Widget _saveButton(bool isSaving, VoidCallback onSave) {
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       ),
     ],

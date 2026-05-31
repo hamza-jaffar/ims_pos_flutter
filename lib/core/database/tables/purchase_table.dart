@@ -3,11 +3,13 @@ import 'package:sqflite/sqflite.dart';
 class PurchaseTable {
   static const String tableName = 'purchases';
 
-  static const String createTableSql = '''
+  static const String createTableSql =
+      '''
     CREATE TABLE $tableName(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       reference_no TEXT NOT NULL UNIQUE,
       supplier_id INTEGER,
+      customer_id INTEGER,
       purchase_date TEXT NOT NULL,
       type TEXT NOT NULL DEFAULT 'Purchase', -- Purchase, Order, Return
       status TEXT NOT NULL DEFAULT 'Received', -- Received, Pending, Ordered, Returned
@@ -19,7 +21,8 @@ class PurchaseTable {
       note TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
-      FOREIGN KEY(supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL
+      FOREIGN KEY(supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL,
+      FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE SET NULL
     )
   ''';
 
@@ -33,6 +36,7 @@ class PurchaseTable {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         reference_no TEXT NOT NULL UNIQUE,
         supplier_id INTEGER,
+        customer_id INTEGER,
         purchase_date TEXT NOT NULL,
         type TEXT NOT NULL DEFAULT 'Purchase',
         status TEXT NOT NULL DEFAULT 'Received',
@@ -44,8 +48,25 @@ class PurchaseTable {
         note TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
-        FOREIGN KEY(supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL
+        FOREIGN KEY(supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL,
+        FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE SET NULL
       )
     ''');
+  }
+
+  static Future<void> migrateV12(Database db) async {
+    try {
+      await db.execute('ALTER TABLE $tableName ADD COLUMN customer_id INTEGER');
+    } catch (e) {
+      // Column might already exist
+    }
+  }
+
+  static Future<void> migrateV13(Database db) async {
+    try {
+      await db.execute('ALTER TABLE $tableName ADD COLUMN customer_id INTEGER');
+    } catch (e) {
+      // Column might already exist
+    }
   }
 }

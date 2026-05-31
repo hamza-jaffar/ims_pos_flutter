@@ -26,16 +26,22 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   Future<void> _loadUsers() async {
     setState(() => _isLoading = true);
     final users = await UserService.instance.getAllUsers();
-    if (mounted) setState(() { _users = users; _isLoading = false; });
+    if (mounted)
+      setState(() {
+        _users = users;
+        _isLoading = false;
+      });
   }
 
   List<User> get _filtered {
     if (_search.isEmpty) return _users;
     final q = _search.toLowerCase();
     return _users
-        .where((u) =>
-            u.name.toLowerCase().contains(q) ||
-            u.email.toLowerCase().contains(q))
+        .where(
+          (u) =>
+              u.name.toLowerCase().contains(q) ||
+              u.email.toLowerCase().contains(q),
+        )
         .toList();
   }
 
@@ -53,7 +59,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
           title: _dialogTitle(Icons.person_add_outlined, 'Create New User'),
           contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
           content: SizedBox(
@@ -63,45 +71,65 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _dialogField(nameCtrl, 'Full Name', Icons.person_outline,
-                      required: true),
+                  _dialogField(
+                    nameCtrl,
+                    'Full Name',
+                    Icons.person_outline,
+                    required: true,
+                  ),
                   const SizedBox(height: 14),
-                  _dialogField(emailCtrl, 'Email Address', Icons.email_outlined,
-                      required: true, keyboardType: TextInputType.emailAddress,
-                      validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Email is required.';
-                    }
-                    final emailRx = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-                    return emailRx.hasMatch(v.trim())
-                        ? null
-                        : 'Enter a valid email.';
-                  }),
+                  _dialogField(
+                    emailCtrl,
+                    'Email Address',
+                    Icons.email_outlined,
+                    required: true,
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) {
+                        return 'Email is required.';
+                      }
+                      final emailRx = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+                      return emailRx.hasMatch(v.trim())
+                          ? null
+                          : 'Enter a valid email.';
+                    },
+                  ),
                   const SizedBox(height: 14),
-                  _dialogField(passCtrl, 'Password', Icons.lock_outline,
-                      required: true, obscure: obscure,
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          obscure
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          size: 18,
-                          color: AppColors.textSecondary,
-                        ),
-                        onPressed: () => setDState(() => obscure = !obscure),
+                  _dialogField(
+                    passCtrl,
+                    'Password',
+                    Icons.lock_outline,
+                    required: true,
+                    obscure: obscure,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscure
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        size: 18,
+                        color: AppColors.textSecondary,
                       ),
-                      validator: (v) {
-                    if (v == null || v.isEmpty) return 'Password is required.';
-                    if (v.length < 6) return 'Min 6 characters.';
-                    return null;
-                  }),
+                      onPressed: () => setDState(() => obscure = !obscure),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.isEmpty)
+                        return 'Password is required.';
+                      if (v.length < 6) return 'Min 6 characters.';
+                      return null;
+                    },
+                  ),
                   const SizedBox(height: 14),
-                  _dialogField(confirmCtrl, 'Confirm Password',
-                      Icons.lock_outline,
-                      required: true, obscure: obscure, validator: (v) {
-                    if (v != passCtrl.text) return 'Passwords do not match.';
-                    return null;
-                  }),
+                  _dialogField(
+                    confirmCtrl,
+                    'Confirm Password',
+                    Icons.lock_outline,
+                    required: true,
+                    obscure: obscure,
+                    validator: (v) {
+                      if (v != passCtrl.text) return 'Passwords do not match.';
+                      return null;
+                    },
+                  ),
                   const SizedBox(height: 8),
                 ],
               ),
@@ -117,8 +145,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 if (!formKey.currentState!.validate()) return;
 
                 // Check email duplication
-                final exists = await UserService.instance
-                    .emailExists(emailCtrl.text.trim());
+                final exists = await UserService.instance.emailExists(
+                  emailCtrl.text.trim(),
+                );
                 if (exists) {
                   _showSnack('Email already in use.', AppColors.danger);
                   return;
@@ -142,7 +171,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
               child: const Text('Create User'),
             ),
@@ -164,7 +194,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
       barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
           title: _dialogTitle(Icons.lock_reset_outlined, 'Reset Password'),
           contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
           content: SizedBox(
@@ -187,45 +219,62 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(user.name,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                    color: AppColors.textMain)),
-                            Text(user.email,
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textSecondary)),
+                            Text(
+                              user.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                                color: AppColors.textMain,
+                              ),
+                            ),
+                            Text(
+                              user.email,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
                           ],
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 16),
-                  _dialogField(passCtrl, 'New Password', Icons.lock_outline,
-                      required: true, obscure: obscure,
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          obscure
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          size: 18,
-                          color: AppColors.textSecondary,
-                        ),
-                        onPressed: () => setDState(() => obscure = !obscure),
+                  _dialogField(
+                    passCtrl,
+                    'New Password',
+                    Icons.lock_outline,
+                    required: true,
+                    obscure: obscure,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscure
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        size: 18,
+                        color: AppColors.textSecondary,
                       ),
-                      validator: (v) {
-                    if (v == null || v.isEmpty) return 'Password is required.';
-                    if (v.length < 6) return 'Min 6 characters.';
-                    return null;
-                  }),
+                      onPressed: () => setDState(() => obscure = !obscure),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.isEmpty)
+                        return 'Password is required.';
+                      if (v.length < 6) return 'Min 6 characters.';
+                      return null;
+                    },
+                  ),
                   const SizedBox(height: 14),
-                  _dialogField(confirmCtrl, 'Confirm Password',
-                      Icons.lock_outline,
-                      required: true, obscure: obscure, validator: (v) {
-                    if (v != passCtrl.text) return 'Passwords do not match.';
-                    return null;
-                  }),
+                  _dialogField(
+                    confirmCtrl,
+                    'Confirm Password',
+                    Icons.lock_outline,
+                    required: true,
+                    obscure: obscure,
+                    validator: (v) {
+                      if (v != passCtrl.text) return 'Passwords do not match.';
+                      return null;
+                    },
+                  ),
                   const SizedBox(height: 8),
                 ],
               ),
@@ -255,7 +304,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
               child: const Text('Reset Password'),
             ),
@@ -275,17 +325,23 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         content: RichText(
           text: TextSpan(
             style: const TextStyle(
-                fontSize: 14, color: AppColors.textSecondary, height: 1.5),
+              fontSize: 14,
+              color: AppColors.textSecondary,
+              height: 1.5,
+            ),
             children: [
               const TextSpan(text: 'Are you sure you want to delete '),
               TextSpan(
                 text: user.name,
                 style: const TextStyle(
-                    fontWeight: FontWeight.w600, color: AppColors.textMain),
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textMain,
+                ),
               ),
               const TextSpan(
-                  text:
-                      '? This action cannot be undone and all associated data will be removed.'),
+                text:
+                    '? This action cannot be undone and all associated data will be removed.',
+              ),
             ],
           ),
         ),
@@ -300,7 +356,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 await UserService.instance.deleteUser(user.id!);
                 if (ctx.mounted) Navigator.of(ctx).pop();
                 _showSnack(
-                    '${user.name} deleted successfully.', AppColors.success);
+                  '${user.name} deleted successfully.',
+                  AppColors.success,
+                );
                 _loadUsers();
               } catch (e) {
                 if (ctx.mounted) Navigator.of(ctx).pop();
@@ -312,7 +370,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             child: const Text('Delete'),
           ),
@@ -349,7 +408,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppColors.purple.withOpacity(0.12),
+                color: AppColors.purple.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(
@@ -375,7 +434,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   Text(
                     'Manage system users, passwords and access.',
                     style: TextStyle(
-                        fontSize: 13, color: AppColors.textSecondary),
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -391,10 +452,13 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 14),
+                  horizontal: 20,
+                  vertical: 14,
+                ),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
             ),
           ],
@@ -415,14 +479,21 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 ),
                 child: TextField(
                   onChanged: (v) => setState(() => _search = v),
-                  style:
-                      const TextStyle(fontSize: 14, color: AppColors.textMain),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textMain,
+                  ),
                   decoration: InputDecoration(
                     hintText: 'Search users by name or email…',
                     hintStyle: TextStyle(
-                        fontSize: 13, color: Colors.grey.shade400),
-                    prefixIcon: const Icon(Icons.search,
-                        size: 18, color: AppColors.textSecondary),
+                      fontSize: 13,
+                      color: Colors.grey.shade400,
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.search,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
                     border: InputBorder.none,
                     isDense: true,
                     contentPadding: const EdgeInsets.symmetric(vertical: 12),
@@ -440,13 +511,18 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.people_outline,
-                      size: 16, color: AppColors.textSecondary),
+                  const Icon(
+                    Icons.people_outline,
+                    size: 16,
+                    color: AppColors.textSecondary,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     '${_users.length} user${_users.length == 1 ? '' : 's'}',
                     style: const TextStyle(
-                        fontSize: 13, color: AppColors.textSecondary),
+                      fontSize: 13,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -464,7 +540,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
             border: Border.all(color: AppColors.border),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -478,53 +554,47 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   ),
                 )
               : filtered.isEmpty
-                  ? _emptyState()
-                  : Column(
-                      children: [
-                        // Table header
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: AppColors.background,
-                            borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(12)),
-                          ),
-                          child: const Row(
-                            children: [
-                              Expanded(
-                                flex: 3,
-                                child: _TableHeader('User'),
-                              ),
-                              Expanded(
-                                flex: 3,
-                                child: _TableHeader('Email'),
-                              ),
-                              Expanded(
-                                flex: 1,
-                                child: _TableHeader('Role'),
-                              ),
-                              SizedBox(width: 100, child: _TableHeader('Actions')),
-                            ],
-                          ),
+              ? _emptyState()
+              : Column(
+                  children: [
+                    // Table header
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.background,
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(12),
                         ),
-                        const Divider(height: 1, color: AppColors.border),
-
-                        // Rows
-                        ListView.separated(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: filtered.length,
-                          separatorBuilder: (_, __) => const Divider(
-                              height: 1, color: AppColors.border),
-                          itemBuilder: (_, i) => _UserRow(
-                            user: filtered[i],
-                            onResetPassword: _showResetPasswordDialog,
-                            onDelete: _confirmDelete,
-                          ),
-                        ),
-                      ],
+                      ),
+                      child: const Row(
+                        children: [
+                          Expanded(flex: 3, child: _TableHeader('User')),
+                          Expanded(flex: 3, child: _TableHeader('Email')),
+                          Expanded(flex: 1, child: _TableHeader('Role')),
+                          SizedBox(width: 100, child: _TableHeader('Actions')),
+                        ],
+                      ),
                     ),
+                    const Divider(height: 1, color: AppColors.border),
+
+                    // Rows
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, _) =>
+                          const Divider(height: 1, color: AppColors.border),
+                      itemBuilder: (_, i) => _UserRow(
+                        user: filtered[i],
+                        onResetPassword: _showResetPasswordDialog,
+                        onDelete: _confirmDelete,
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ],
     );
@@ -537,13 +607,11 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.people_outline,
-                size: 48, color: Colors.grey.shade300),
+            Icon(Icons.people_outline, size: 48, color: Colors.grey.shade300),
             const SizedBox(height: 12),
             Text(
               _search.isEmpty ? 'No users found.' : 'No results for "$_search"',
-              style: TextStyle(
-                  fontSize: 14, color: Colors.grey.shade400),
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade400),
             ),
           ],
         ),
@@ -599,8 +667,10 @@ Widget _dialogField(
         decoration: InputDecoration(
           prefixIcon: Icon(icon, size: 18, color: AppColors.textSecondary),
           suffixIcon: suffixIcon,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 12,
+          ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: AppColors.border),
@@ -624,11 +694,12 @@ Widget _dialogField(
           filled: true,
           fillColor: Colors.white,
         ),
-        validator: validator ??
+        validator:
+            validator ??
             (required
                 ? (v) => (v == null || v.trim().isEmpty)
-                    ? 'This field is required.'
-                    : null
+                      ? 'This field is required.'
+                      : null
                 : null),
       ),
     ],
@@ -658,7 +729,7 @@ Widget _userAvatar(User user, {double size = 42}) {
     width: size,
     height: size,
     decoration: BoxDecoration(
-      color: color.withOpacity(0.15),
+      color: color.withValues(alpha: 0.15),
       shape: BoxShape.circle,
     ),
     child: Center(
@@ -741,7 +812,9 @@ class _UserRow extends StatelessWidget {
             child: Text(
               user.email,
               style: const TextStyle(
-                  fontSize: 13, color: AppColors.textSecondary),
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -750,12 +823,9 @@ class _UserRow extends StatelessWidget {
           Expanded(
             flex: 1,
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: isAdmin
-                    ? AppColors.primaryLight
-                    : AppColors.background,
+                color: isAdmin ? AppColors.primaryLight : AppColors.background,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -764,9 +834,7 @@ class _UserRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: isAdmin
-                      ? AppColors.primary
-                      : AppColors.textSecondary,
+                  color: isAdmin ? AppColors.primary : AppColors.textSecondary,
                 ),
               ),
             ),

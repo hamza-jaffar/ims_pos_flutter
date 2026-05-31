@@ -611,7 +611,7 @@ class _PurchaseListScreenState extends State<PurchaseListScreen> {
           physics: const NeverScrollableScrollPhysics(),
           shrinkWrap: true,
           itemCount: _filtered.length,
-          separatorBuilder: (_, __) =>
+          separatorBuilder: (_, _) =>
               Divider(height: 1, color: AppColors.border),
           itemBuilder: (_, index) => _buildRow(_filtered[index], index),
         ),

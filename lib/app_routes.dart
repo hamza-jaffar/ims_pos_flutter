@@ -31,9 +31,16 @@ import 'package:ims_pos_system/screens/peoples/customer/edit_customer_screen.dar
 import 'package:ims_pos_system/screens/purchases/purchase_list_screen.dart';
 import 'package:ims_pos_system/screens/purchases/create_purchase_screen.dart';
 import 'package:ims_pos_system/screens/reports/purchase_report_screen.dart';
+import 'package:ims_pos_system/screens/reports/sales_report_screen.dart';
+import 'package:ims_pos_system/screens/pos/sales_history_screen.dart';
 import 'package:ims_pos_system/pos/index.dart';
+import 'package:ims_pos_system/screens/dashboard/dashboard_screen.dart';
+import 'package:ims_pos_system/screens/invoices/invoice_screen.dart';
+import 'package:ims_pos_system/screens/search_results_screen.dart';
 
 class AppRoutes {
+  static const String dashboard = '/dashboard';
+  static const String invoices = '/invoices';
   static const String products = '/products';
   static const String createProduct = '/products/create';
   static const String editProduct = '/products/edit';
@@ -65,6 +72,8 @@ class AppRoutes {
   static const String platformSettings = '/settings/platform';
   static const String userManagement = '/settings/users';
   static const String purchaseReport = '/reports/purchase';
+  static const String salesReport = '/reports/sales';
+  static const String salesHistory = '/sales/history';
   static const String pos = '/pos';
 
   /// Parses a route string and returns the matching widget.
@@ -76,6 +85,10 @@ class AppRoutes {
     final callback = onRouteSelected ?? (r) {};
 
     switch (route) {
+      case dashboard:
+        return DashboardScreen(onRouteSelected: callback);
+      case invoices:
+        return InvoiceScreen(onRouteSelected: callback);
       case products:
         return ProductScreen(onRouteSelected: callback);
       case createProduct:
@@ -142,6 +155,10 @@ class AppRoutes {
         return UserManagementScreen(onRouteSelected: callback);
       case purchaseReport:
         return PurchaseReportScreen(onRouteSelected: callback);
+      case salesReport:
+        return SalesReportScreen(onRouteSelected: callback);
+      case salesHistory:
+        return SalesHistoryScreen(onRouteSelected: callback);
       case pos:
         return const POSWindow();
     }
@@ -239,10 +256,21 @@ class AppRoutes {
       }
     }
 
+    // Parameterized: /search/:query
+    if (route.startsWith('/search/')) {
+      final query = Uri.decodeComponent(route.substring('/search/'.length));
+      return SearchResultsScreen(
+        query: query,
+        onRouteSelected: callback,
+      );
+    }
+
     return null;
   }
 
   static Map<String, WidgetBuilder> routes = {
+    dashboard: (context) => DashboardScreen(onRouteSelected: (r) {}),
+    invoices: (context) => InvoiceScreen(onRouteSelected: (r) {}),
     products: (context) => ProductScreen(onRouteSelected: (r) {}),
     createProduct: (context) => CreateProductScreen(onRouteSelected: (r) {}),
     lowStocks: (context) => LowStocksScreen(onRouteSelected: (r) {}),
@@ -274,6 +302,8 @@ class AppRoutes {
         PlatformSettingsScreen(onRouteSelected: (r) {}),
     userManagement: (context) => UserManagementScreen(onRouteSelected: (r) {}),
     purchaseReport: (context) => PurchaseReportScreen(onRouteSelected: (r) {}),
+    salesReport: (context) => SalesReportScreen(onRouteSelected: (r) {}),
+    salesHistory: (context) => SalesHistoryScreen(onRouteSelected: (r) {}),
     pos: (context) => const POSWindow(),
   };
 }

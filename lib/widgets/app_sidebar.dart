@@ -179,8 +179,8 @@ class _AppSidebarState extends State<AppSidebar> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(500),
                       color: expanded
-                          ? AppColors.primary.withOpacity(.1)
-                          : AppColors.textMain.withOpacity(.1),
+                          ? AppColors.primary.withValues(alpha: .1)
+                          : AppColors.textMain.withValues(alpha: .1),
                     ),
                     child: Icon(
                       size: 22,
@@ -234,7 +234,7 @@ class _AppSidebarState extends State<AppSidebar> {
           padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 6),
           decoration: BoxDecoration(
             color: selected
-                ? AppColors.primary.withOpacity(0.08)
+                ? AppColors.primary.withValues(alpha: 0.08)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
           ),
@@ -281,7 +281,7 @@ class _AppSidebarState extends State<AppSidebar> {
           padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
           decoration: BoxDecoration(
             color: selected
-                ? AppColors.primary.withOpacity(0.1)
+                ? AppColors.primary.withValues(alpha: 0.1)
                 : Colors.transparent,
             borderRadius: BorderRadius.circular(8),
           ),

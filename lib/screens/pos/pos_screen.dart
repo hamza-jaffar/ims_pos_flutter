@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:ims_pos_system/const/app_colors.dart';
 import 'package:ims_pos_system/models/customer.dart';
@@ -7,7 +9,6 @@ import 'package:ims_pos_system/models/purchase_item.dart';
 import 'package:ims_pos_system/services/customer_service.dart';
 import 'package:ims_pos_system/services/platform_settings_service.dart';
 import 'package:ims_pos_system/services/product_service.dart';
-import 'package:ims_pos_system/services/purchase_service.dart';
 import 'package:ims_pos_system/services/sale_service.dart';
 
 class CartItem {
@@ -33,14 +34,19 @@ class PosScreen extends StatefulWidget {
   State<PosScreen> createState() => _PosScreenState();
 }
 
-class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
+class _PosScreenState extends State<PosScreen>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   final TextEditingController _searchController = TextEditingController();
   List<Product> _products = [];
   List<Product> _filteredProducts = [];
   List<Customer> _customers = [];
   final List<CartItem> _cart = [];
   bool _isLoading = true;
+  bool _isRefreshing = false;
+  bool _isSearching = false;
   bool _isReturnMode = false;
+  Timer? _refreshTimer;
+  Timer? _searchDebounce;
 
   Purchase? _selectedReturnOrder;
   List<Purchase> _recentSales = [];
@@ -64,34 +70,70 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _modeAnimController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
     );
     _loadData();
-    _searchController.addListener(_filterProducts);
+    _startAutoRefreshTimer();
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _refreshTimer?.cancel();
+    _searchDebounce?.cancel();
     _modeAnimController.dispose();
-    _searchController.removeListener(_filterProducts);
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadData() async {
-    setState(() => _isLoading = true);
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted && !_isLoading) {
+      _loadData(showLoading: false);
+    }
+  }
+
+  Future<void> _loadData({bool showLoading = true}) async {
+    if (showLoading) {
+      setState(() {
+        _isLoading = true;
+        _isSearching = false;
+      });
+    } else {
+      setState(() {
+        _isRefreshing = true;
+        _isSearching = false;
+      });
+    }
+
     try {
-      final products = await ProductService.instance.getActiveProducts();
-      final customers = await CustomerService.instance.getActiveCustomers();
+      final results = await Future.wait([
+        ProductService.instance.getActiveProducts(),
+        CustomerService.instance.getActiveCustomers(),
+      ]);
+
+      final products = results[0] as List<Product>;
+      final customers = results[1] as List<Customer>;
+
       if (mounted) {
         setState(() {
           _products = products;
-          _filteredProducts = products;
           _customers = customers;
           _isLoading = false;
+          _isRefreshing = false;
+          _isSearching = false;
         });
+        final query = _searchController.text.trim();
+        if (query.isEmpty) {
+          setState(() => _filteredProducts = []);
+        } else {
+          await _searchProducts(query);
+        }
       }
     } catch (error) {
       if (mounted) {
@@ -110,19 +152,49 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
     }
   }
 
-  void _filterProducts() {
-    final query = _searchController.text.trim().toLowerCase();
-    setState(() {
-      _filteredProducts = _products.where((product) {
-        return query.isEmpty ||
-            product.name.toLowerCase().contains(query) ||
-            product.code.toLowerCase().contains(query) ||
-            (product.barcode?.toLowerCase().contains(query) ?? false) ||
-            (product.categoryName?.toLowerCase().contains(query) ?? false) ||
-            (product.brandName?.toLowerCase().contains(query) ?? false) ||
-            (product.roomName?.toLowerCase().contains(query) ?? false);
-      }).toList();
+  void _onSearchChanged() {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      final query = _searchController.text.trim();
+      if (query.isEmpty) {
+        setState(() {
+          _filteredProducts = [];
+          _isSearching = false;
+        });
+        _loadData(showLoading: false);
+      } else {
+        _searchProducts(query);
+      }
     });
+  }
+
+  Future<void> _searchProducts(String query) async {
+    if (!mounted) return;
+    if (query.isEmpty) {
+      setState(() {
+        _filteredProducts = [];
+        _isSearching = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isSearching = true;
+      _filteredProducts = [];
+    });
+
+    try {
+      final results = await ProductService.instance.search(query);
+      if (!mounted) return;
+      setState(() {
+        _filteredProducts = results;
+        _isSearching = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isSearching = false);
+      _showSnack('Search failed: $error', AppColors.danger);
+    }
   }
 
   Future<void> _fetchRecentSales() async {
@@ -137,6 +209,13 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
     } finally {
       if (mounted) setState(() => _isFetchingSales = false);
     }
+  }
+
+  void _startAutoRefreshTimer() {
+    _refreshTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+      if (!mounted || _isLoading || _isRefreshing) return;
+      _loadData(showLoading: false);
+    });
   }
 
   void _toggleMode(bool isReturn) {
@@ -445,35 +524,34 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Row(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      // Price
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '$currency${product.sellingPrice.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.primary,
-                              ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '$currency${product.sellingPrice.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.primary,
                             ),
-                            Text(
-                              'Qty: $availableStock',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.textSecondary,
-                              ),
+                          ),
+                          Text(
+                            'Qty: $availableStock',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      // Category/Brand chips
                       if (product.categoryName != null)
                         Container(
-                          margin: const EdgeInsets.only(right: 6),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
                             vertical: 4,
@@ -489,9 +567,9 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
                               fontWeight: FontWeight.w600,
                               color: AppColors.purple,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      // Add button
                       GestureDetector(
                         onTap: isOutOfStock ? null : () => _addToCart(product),
                         child: AnimatedContainer(
@@ -533,182 +611,197 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
   }
 
   // ─────────────────────────── CART PANEL ──────────────────────────────────
+
+  Widget _buildCartHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+      decoration: BoxDecoration(
+        color: Colors.white.withAlpha(8),
+        border: Border(bottom: BorderSide(color: Colors.white.withAlpha(20))),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withAlpha(40),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.shopping_cart_rounded,
+              color: AppColors.primary,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Expanded(
+            child: Text(
+              'Cart & Checkout',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          if (_cart.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '$_totalItems items',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCart(bool isMobile) {
     final currency = PlatformSettingsService.instance.settings.currencySymbol;
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: const Color(0xFF1B2559),
+        borderRadius: BorderRadius.circular(10),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: const Color(0xFF1B2559).withAlpha(60),
+            blurRadius: 24,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Cart Header
-          Container(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(bottom: BorderSide(color: AppColors.border)),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.shopping_cart_rounded,
-                  color: AppColors.textMain,
-                  size: 20,
-                ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Text(
-                    'Cart & Checkout',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textMain,
-                    ),
-                  ),
-                ),
-                if (_cart.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '$_totalItems items',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
+          // Header
+          _buildCartHeader(),
 
-          // Customer & Payment Section
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Customer Type Toggle
-                _sectionLabel('Customer Type'),
-                const SizedBox(height: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  padding: const EdgeInsets.all(4),
-                  child: Row(
-                    children: [
-                      _customerTypeChip(
-                        'walkin',
-                        'Walk-in',
-                        Icons.directions_walk_rounded,
-                      ),
-                      _customerTypeChip(
-                        'customer',
-                        'Customer',
-                        Icons.person_rounded,
-                      ),
-                    ],
-                  ),
-                ),
-                // Customer Dropdown
-                if (_customerType == 'customer') ...[
-                  const SizedBox(height: 12),
-                  _sectionLabel('Select Customer'),
-                  const SizedBox(height: 8),
-                  _premiumDropdown<Customer>(
-                    value: _selectedCustomer,
-                    hint: 'Choose a customer',
-                    items: _customers.map((c) {
-                      return DropdownMenuItem(value: c, child: Text(c.name));
-                    }).toList(),
-                    onChanged: (c) => setState(() => _selectedCustomer = c),
-                    icon: Icons.person_search_rounded,
-                  ),
-                ],
-                const SizedBox(height: 12),
-                // Payment Method
-                _sectionLabel('Payment Method'),
-                const SizedBox(height: 8),
-                _premiumDropdown<String>(
-                  value: _paymentMethod,
-                  hint: 'Select payment',
-                  items: _paymentMethods.map((m) {
-                    return DropdownMenuItem(value: m, child: Text(m));
-                  }).toList(),
-                  onChanged: (m) {
-                    if (m != null) setState(() => _paymentMethod = m);
-                  },
-                  icon: Icons.payment_rounded,
-                ),
-              ],
-            ),
-          ),
+          // Scrollable Content
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.zero,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Customer Type
+                        _sectionLabel('Customer Type', light: true),
+                        const SizedBox(height: 8),
 
-          // Divider
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            child: Divider(color: AppColors.border, height: 1),
-          ),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white.withAlpha(12),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.white.withAlpha(20),
+                            ),
+                          ),
+                          padding: const EdgeInsets.all(4),
+                          child: Row(
+                            children: [
+                              _customerTypeChip(
+                                'walkin',
+                                'Walk-in',
+                                Icons.directions_walk_rounded,
+                              ),
+                              _customerTypeChip(
+                                'customer',
+                                'Customer',
+                                Icons.person_rounded,
+                              ),
+                            ],
+                          ),
+                        ),
 
-          // Cart Items
-          if (isMobile)
-            _cart.isEmpty
-                ? _buildEmptyCart()
-                : ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 4,
+                        if (_customerType == 'customer') ...[
+                          const SizedBox(height: 12),
+                          _sectionLabel('Select Customer', light: true),
+                          const SizedBox(height: 8),
+                          _premiumDropdown<Customer>(
+                            value: _selectedCustomer,
+                            hint: 'Choose a customer',
+                            items: _customers.map((c) {
+                              return DropdownMenuItem(
+                                value: c,
+                                child: Text(c.name),
+                              );
+                            }).toList(),
+                            onChanged: (c) =>
+                                setState(() => _selectedCustomer = c),
+                            icon: Icons.person_search_rounded,
+                          ),
+                        ],
+
+                        const SizedBox(height: 12),
+
+                        _sectionLabel('Payment Method', light: true),
+                        const SizedBox(height: 8),
+
+                        _premiumDropdown<String>(
+                          value: _paymentMethod,
+                          hint: 'Select payment',
+                          items: _paymentMethods.map((m) {
+                            return DropdownMenuItem(value: m, child: Text(m));
+                          }).toList(),
+                          onChanged: (m) {
+                            if (m != null) {
+                              setState(() => _paymentMethod = m);
+                            }
+                          },
+                          icon: Icons.payment_rounded,
+                        ),
+                      ],
                     ),
-                    itemCount: _cart.length,
-                    separatorBuilder: (_, _) =>
-                        Divider(color: AppColors.border, height: 20),
-                    itemBuilder: (context, index) {
-                      final item = _cart[index];
-                      return _buildCartItem(item, index, currency);
-                    },
-                  )
-          else
-            Expanded(
-              child: _cart.isEmpty
-                  ? _buildEmptyCart()
-                  : ListView.separated(
+                  ),
+
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Divider(
+                      color: Colors.white.withAlpha(20),
+                      height: 1,
+                    ),
+                  ),
+
+                  if (_cart.isEmpty)
+                    _buildEmptyCart()
+                  else
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 4,
                       ),
                       itemCount: _cart.length,
-                      separatorBuilder: (_, _) =>
-                          Divider(color: AppColors.border, height: 20),
+                      separatorBuilder: (_, _) => Divider(
+                        color: Colors.white.withAlpha(20),
+                        height: 20,
+                      ),
                       itemBuilder: (context, index) {
                         final item = _cart[index];
                         return _buildCartItem(item, index, currency);
                       },
                     ),
+                ],
+              ),
             ),
+          ),
 
-          // Total & Checkout
+          // Fixed Footer
           if (_cart.isNotEmpty) _buildCheckoutFooter(currency),
         ],
       ),
@@ -727,19 +820,13 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 9),
+          padding: const EdgeInsets.symmetric(vertical: 6),
           decoration: BoxDecoration(
-            color: isSelected ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(9),
-            // boxShadow: isSelected
-            //     ? [
-            //         BoxShadow(
-            //           color: Colors.black.withValues(alpha: ),
-            //           blurRadius: 6,
-            //           offset: const Offset(0, 2),
-            //         )
-            //       ]
-            //     : [],
+            color: isSelected ? Colors.white.withAlpha(20) : Colors.transparent,
+            borderRadius: BorderRadius.circular(7),
+            border: isSelected
+                ? Border.all(color: Colors.white.withAlpha(40))
+                : null,
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -747,17 +834,13 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
               Icon(
                 icon,
                 size: 15,
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                color: isSelected ? AppColors.primary : Colors.white54,
               ),
               const SizedBox(width: 5),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected
-                      ? AppColors.textMain
-                      : AppColors.textSecondary,
+                  color: isSelected ? Colors.white : Colors.white54,
                 ),
               ),
             ],
@@ -775,32 +858,31 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
     required IconData icon,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 1),
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: Colors.white.withAlpha(25)),
         borderRadius: BorderRadius.circular(12),
-        color: const Color(0xFFFAFBFC),
+        color: Colors.white.withAlpha(12),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: AppColors.textSecondary),
+          Icon(icon, size: 18, color: Colors.white54),
           const SizedBox(width: 8),
           Expanded(
             child: DropdownButtonHideUnderline(
               child: DropdownButton<T>(
                 isExpanded: true,
+                dropdownColor: const Color(0xFF243060),
                 hint: Text(
                   hint,
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 14,
-                  ),
+                  style: const TextStyle(color: Colors.white54, fontSize: 14),
                 ),
                 value: value,
                 items: items,
                 onChanged: onChanged,
+                iconEnabledColor: Colors.white54,
                 style: const TextStyle(
-                  color: AppColors.textMain,
+                  color: Colors.white,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
@@ -812,14 +894,14 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _sectionLabel(String label) {
+  Widget _sectionLabel(String label, {bool light = false}) {
     return Text(
-      label,
-      style: const TextStyle(
-        fontSize: 12,
+      label.toUpperCase(),
+      style: TextStyle(
+        fontSize: 10,
         fontWeight: FontWeight.w700,
-        color: AppColors.textSecondary,
-        letterSpacing: 0.5,
+        color: light ? Colors.white60 : AppColors.textSecondary,
+        letterSpacing: 1.0,
       ),
     );
   }
@@ -833,12 +915,13 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: AppColors.primaryLight,
+              color: Colors.white.withAlpha(15),
               shape: BoxShape.circle,
+              border: Border.all(color: Colors.white.withAlpha(30)),
             ),
             child: const Icon(
               Icons.shopping_cart_outlined,
-              color: AppColors.primary,
+              color: Colors.white38,
               size: 34,
             ),
           ),
@@ -848,14 +931,14 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
             style: TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 16,
-              color: AppColors.textMain,
+              color: Colors.white,
             ),
           ),
           const SizedBox(height: 6),
-          Text(
+          const Text(
             'Select products from the left\nto add them here.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            style: TextStyle(fontSize: 13, color: Colors.white38),
           ),
         ],
       ),
@@ -870,8 +953,8 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
           width: 38,
           height: 38,
           decoration: BoxDecoration(
-            color: AppColors.primaryLight,
-            borderRadius: BorderRadius.circular(9),
+            color: AppColors.primary.withAlpha(40),
+            borderRadius: BorderRadius.circular(10),
           ),
           child: const Icon(
             Icons.inventory_2_rounded,
@@ -889,7 +972,7 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
                 style: const TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
-                  color: AppColors.textMain,
+                  color: Colors.white,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -897,13 +980,13 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
               const SizedBox(height: 2),
               Text(
                 _isReturnMode
-                    ? '$currency${item.unitPrice.toStringAsFixed(2)} × ${item.quantity} = -$currency${item.subtotal.toStringAsFixed(2)} (Refund)'
+                    ? '$currency${item.unitPrice.toStringAsFixed(2)} × ${item.quantity} = -$currency${item.subtotal.toStringAsFixed(2)}'
                     : '$currency${item.unitPrice.toStringAsFixed(2)} × ${item.quantity} = $currency${item.subtotal.toStringAsFixed(2)}',
                 style: TextStyle(
-                  fontSize: 12,
+                  fontSize: 11,
                   color: _isReturnMode
-                      ? AppColors.danger
-                      : AppColors.textSecondary,
+                      ? const Color(0xFFFF6B6B)
+                      : Colors.white54,
                   fontWeight: _isReturnMode
                       ? FontWeight.w600
                       : FontWeight.normal,
@@ -916,8 +999,9 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
         // Quantity controls
         Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFF1F5F9),
+            color: Colors.white.withAlpha(15),
             borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white.withAlpha(25)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -934,6 +1018,7 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
+                    color: Colors.white,
                   ),
                 ),
               ),
@@ -952,12 +1037,12 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
             width: 30,
             height: 30,
             decoration: BoxDecoration(
-              color: AppColors.dangerLight,
+              color: AppColors.danger.withAlpha(40),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
               Icons.close_rounded,
-              color: AppColors.danger,
+              color: Color(0xFFFF6B6B),
               size: 15,
             ),
           ),
@@ -973,78 +1058,87 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
         width: 28,
         height: 28,
         alignment: Alignment.center,
-        child: Icon(icon, size: 15, color: AppColors.textMain),
+        child: Icon(icon, size: 15, color: Colors.white70),
       ),
     );
   }
 
   Widget _buildCheckoutFooter(String currency) {
+    final checkoutColor = _isReturnMode ? AppColors.danger : AppColors.primary;
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.border)),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: Colors.white.withAlpha(20))),
+        color: Colors.white.withAlpha(5),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(20)),
       ),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '$_totalItems item${_totalItems > 1 ? 's' : ''}',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$_totalItems item${_totalItems > 1 ? 's' : ''}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white54,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Order Total',
+                    style: TextStyle(fontSize: 11, color: Colors.white38),
+                  ),
+                ],
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    _isReturnMode ? 'Refund Total' : 'Grand Total',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
+                    _isReturnMode ? 'Refund' : 'Total',
+                    style: const TextStyle(fontSize: 11, color: Colors.white38),
                   ),
                   Text(
                     '${_isReturnMode ? '-' : ''}$currency${_grandTotal.toStringAsFixed(2)}',
                     style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
                       color: _isReturnMode
-                          ? AppColors.danger
-                          : AppColors.textMain,
+                          ? const Color(0xFFFF6B6B)
+                          : Colors.white,
+                      letterSpacing: -0.5,
                     ),
                   ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _checkout,
-              style:
-                  ElevatedButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    elevation: 0,
-                  ).copyWith(
-                    backgroundColor: WidgetStateProperty.all(
-                      Colors.transparent,
-                    ),
-                  ),
-              child: Ink(
+            height: 52,
+            child: GestureDetector(
+              onTap: _isLoading ? null : _checkout,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
                 decoration: BoxDecoration(
-                  color: _isReturnMode
-                      ? const Color(0xFFF99E4B)
-                      : AppColors.primary,
+                  gradient: LinearGradient(
+                    colors: [checkoutColor, checkoutColor.withAlpha(210)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: checkoutColor.withAlpha(100),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
                 ),
                 child: Center(
                   child: _isLoading
@@ -1053,7 +1147,7 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
                           height: 22,
                           child: CircularProgressIndicator(
                             color: Colors.white,
-                            strokeWidth: 2,
+                            strokeWidth: 2.5,
                           ),
                         )
                       : Row(
@@ -1064,15 +1158,15 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
                                   ? Icons.replay_rounded
                                   : Icons.check_circle_rounded,
                               color: Colors.white,
-                              size: 18,
+                              size: 20,
                             ),
-                            const SizedBox(width: 8),
+                            const SizedBox(width: 10),
                             Text(
                               _checkoutLabel,
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 16,
                               ),
                             ),
                           ],
@@ -1092,23 +1186,24 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
     final isMobile = MediaQuery.of(context).size.width < 900;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F4FF),
+      backgroundColor: const Color(0xFFF1F5FB),
       body: SafeArea(
         child: Column(
           children: [
             _buildHeader(isMobile),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
                 child: isMobile
-                    ? SingleChildScrollView(
-                        child: Column(
-                          children: [
-                            _buildSearchAndList(isMobile),
-                            const SizedBox(height: 16),
-                            _buildCart(isMobile),
-                          ],
-                        ),
+                    ? Column(
+                        children: [
+                          Expanded(
+                            flex: 6,
+                            child: _buildSearchAndList(isMobile),
+                          ),
+                          const SizedBox(height: 12),
+                          Expanded(flex: 5, child: _buildCart(isMobile)),
+                        ],
                       )
                     : Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1117,7 +1212,7 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
                             flex: 6,
                             child: _buildSearchAndList(isMobile),
                           ),
-                          const SizedBox(width: 18),
+                          const SizedBox(width: 16),
                           Expanded(flex: 4, child: _buildCart(isMobile)),
                         ],
                       ),
@@ -1132,21 +1227,31 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
   Widget _buildHeader(bool isMobile) {
     final titleContent = Row(
       children: [
-        // Icon badge
         Container(
-          width: 36,
-          height: 20,
+          width: 42,
+          height: 42,
           decoration: BoxDecoration(
-            color: AppColors.primaryLight,
-            borderRadius: BorderRadius.circular(10),
+            gradient: const LinearGradient(
+              colors: [AppColors.primary, AppColors.primaryDark],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withAlpha(80),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: const Icon(
             Icons.point_of_sale_rounded,
-            color: AppColors.primary,
-            size: 18,
+            color: Colors.white,
+            size: 22,
           ),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1154,14 +1259,15 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
               const Text(
                 'Point of Sale',
                 style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
                   color: AppColors.textMain,
+                  letterSpacing: -0.3,
                 ),
               ),
               Text(
-                'Search, add products and complete sales',
-                style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                'Search products, complete transactions, or refresh after inventory changes',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
               ),
             ],
           ),
@@ -1170,23 +1276,73 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
     );
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(bottom: BorderSide(color: AppColors.border)),
+        border: Border(bottom: BorderSide(color: AppColors.border, width: 1.5)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(8),
+            blurRadius: 12,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: isMobile
           ? Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 titleContent,
-                const SizedBox(height: 10),
-                Center(child: _buildModeToggle()),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _isRefreshing
+                        ? const SizedBox(
+                            width: 36,
+                            height: 36,
+                            child: Center(
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.2,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          )
+                        : IconButton(
+                            onPressed: _isLoading
+                                ? null
+                                : () => _loadData(showLoading: false),
+                            icon: const Icon(Icons.refresh_rounded),
+                            color: AppColors.primary,
+                            tooltip: 'Refresh POS products',
+                          ),
+                    _buildModeToggle(),
+                  ],
+                ),
               ],
             )
           : Row(
               children: [
                 Expanded(child: titleContent),
+                _isRefreshing
+                    ? const SizedBox(
+                        width: 36,
+                        height: 36,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      )
+                    : IconButton(
+                        onPressed: _isLoading
+                            ? null
+                            : () => _loadData(showLoading: false),
+                        icon: const Icon(Icons.refresh_rounded),
+                        color: AppColors.primary,
+                        tooltip: 'Refresh POS products',
+                      ),
                 _buildModeToggle(),
               ],
             ),
@@ -1197,9 +1353,8 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border),
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1208,6 +1363,7 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
             label: 'Sale',
             icon: Icons.shopping_bag_rounded,
             isSelected: !_isReturnMode,
+            color: AppColors.primary,
             onTap: () => _toggleMode(false),
           ),
           const SizedBox(width: 4),
@@ -1215,6 +1371,7 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
             label: 'Return',
             icon: Icons.replay_rounded,
             isSelected: _isReturnMode,
+            color: AppColors.danger,
             onTap: () => _toggleMode(true),
           ),
         ],
@@ -1226,31 +1383,48 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
     required String label,
     required IconData icon,
     required bool isSelected,
+    required Color color,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        duration: const Duration(milliseconds: 220),
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFF99E4B) : Colors.transparent,
+          gradient: isSelected
+              ? LinearGradient(
+                  colors: [color, color.withAlpha(210)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : null,
+          color: isSelected ? null : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: color.withAlpha(80),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : [],
         ),
         child: Row(
           children: [
             Icon(
               icon,
-              size: 18,
-              color: isSelected ? Colors.white : const Color(0xFF64748B),
+              size: 17,
+              color: isSelected ? Colors.white : AppColors.textSecondary,
             ),
             const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 15,
-                color: isSelected ? Colors.white : const Color(0xFF64748B),
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+                color: isSelected ? Colors.white : AppColors.textSecondary,
               ),
             ),
           ],
@@ -1323,6 +1497,7 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
               ),
               child: TextField(
                 controller: _searchController,
+                onChanged: (_) => _onSearchChanged(),
                 decoration: InputDecoration(
                   hintText: 'Search by name, SKU, category, brand…',
                   hintStyle: TextStyle(
@@ -1347,84 +1522,78 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
               ),
             ),
           ),
-          if (isMobile)
-            _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primary,
-                      strokeWidth: 2.5,
-                    ),
-                  )
-                : _filteredProducts.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.search_off_rounded,
-                          color: AppColors.border,
-                          size: 48,
-                        ),
-                        const SizedBox(height: 10),
-                        const Text(
-                          'No products found',
-                          style: TextStyle(
-                            color: AppColors.textSecondary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-                    itemCount: _filteredProducts.length,
-                    itemBuilder: (context, index) {
-                      return _buildProductCard(_filteredProducts[index]);
-                    },
-                  )
-          else
-            Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.primary,
-                        strokeWidth: 2.5,
-                      ),
-                    )
-                  : _filteredProducts.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.search_off_rounded,
-                            color: AppColors.border,
-                            size: 48,
-                          ),
-                          const SizedBox(height: 10),
-                          const Text(
-                            'No products found',
-                            style: TextStyle(
-                              color: AppColors.textSecondary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
-                      itemCount: _filteredProducts.length,
-                      itemBuilder: (context, index) {
-                        return _buildProductCard(_filteredProducts[index]);
-                      },
-                    ),
-            ),
+          Expanded(child: _buildProductListBody()),
         ],
       ),
+    );
+  }
+
+  Widget _buildProductListBody() {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: AppColors.primary,
+          strokeWidth: 2.5,
+        ),
+      );
+    }
+
+    final query = _searchController.text.trim();
+
+    if (query.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.search_rounded, color: AppColors.border, size: 48),
+            const SizedBox(height: 10),
+            const Text(
+              'Type to search products by name, SKU, category, brand…',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_isSearching) {
+      return const Center(
+        child: CircularProgressIndicator(
+          color: AppColors.primary,
+          strokeWidth: 2.5,
+        ),
+      );
+    }
+
+    if (_filteredProducts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.search_off_rounded, color: AppColors.border, size: 48),
+            const SizedBox(height: 10),
+            const Text(
+              'No products found',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+      itemCount: _filteredProducts.length,
+      itemBuilder: (context, index) {
+        return _buildProductCard(_filteredProducts[index]);
+      },
     );
   }
 
@@ -1520,14 +1689,12 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
               ),
             ),
           ),
-          if (isMobile)
-            _isFetchingSales
+          Expanded(
+            child: _isFetchingSales
                 ? const Center(
                     child: CircularProgressIndicator(color: AppColors.purple),
                   )
                 : ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(12),
                     itemCount: _recentSales.length,
                     itemBuilder: (ctx, i) {
@@ -1561,51 +1728,8 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
                         },
                       );
                     },
-                  )
-          else
-            Expanded(
-              child: _isFetchingSales
-                  ? const Center(
-                      child: CircularProgressIndicator(color: AppColors.purple),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(12),
-                      itemCount: _recentSales.length,
-                      itemBuilder: (ctx, i) {
-                        final sale = _recentSales[i];
-                        return ListTile(
-                          leading: const Icon(
-                            Icons.receipt_rounded,
-                            color: AppColors.purple,
-                          ),
-                          title: Text(
-                            sale.referenceNo,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text(
-                            'Total: $currency${sale.grandTotal.toStringAsFixed(2)}',
-                          ),
-                          trailing: const Icon(Icons.chevron_right_rounded),
-                          onTap: () async {
-                            setState(() => _isFetchingSales = true);
-                            try {
-                              final fullOrder = await SaleService.instance
-                                  .getById(sale.id!);
-                              if (mounted) {
-                                setState(
-                                  () => _selectedReturnOrder = fullOrder,
-                                );
-                              }
-                            } finally {
-                              if (mounted) {
-                                setState(() => _isFetchingSales = false);
-                              }
-                            }
-                          },
-                        );
-                      },
-                    ),
-            ),
+                  ),
+          ),
         ],
       ),
     );
@@ -1635,7 +1759,6 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
         ],
       ),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
@@ -1713,100 +1836,100 @@ class _PosScreenState extends State<PosScreen> with TickerProviderStateMixin {
             ),
           ),
           const SizedBox(height: 12),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            itemCount: order.items.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
-            itemBuilder: (ctx, i) {
-              final item = order.items[i];
-              return Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryLight,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.inventory_2_rounded,
-                        color: AppColors.primary,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.product?.name ?? 'Unknown',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: AppColors.textMain,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Purchased Qty: ${item.quantity} • $currency${item.unitCost.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Returnable: ${availableReturnQty(item)}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: availableReturnQty(item) > 0
-                                  ? AppColors.primary
-                                  : AppColors.danger,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    ElevatedButton(
-                      onPressed: availableReturnQty(item) > 0
-                          ? () {
-                              if (item.product != null) {
-                                _showReturnQuantityDialog(item);
-                              }
-                            }
-                          : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
+          Expanded(
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              itemCount: order.items.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              itemBuilder: (ctx, i) {
+                final item = order.items[i];
+                return Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryLight,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        elevation: 0,
+                        child: const Icon(
+                          Icons.inventory_2_rounded,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
                       ),
-                      child: const Text(
-                        'Return',
-                        style: TextStyle(fontSize: 12),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.product?.name ?? 'Unknown',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: AppColors.textMain,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Purchased Qty: ${item.quantity} • $currency${item.unitCost.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Returnable: ${availableReturnQty(item)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: availableReturnQty(item) > 0
+                                    ? AppColors.primary
+                                    : AppColors.danger,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              );
-            },
+                      const SizedBox(width: 10),
+                      ElevatedButton(
+                        onPressed: availableReturnQty(item) > 0
+                            ? () {
+                                if (item.product != null) {
+                                  _showReturnQuantityDialog(item);
+                                }
+                              }
+                            : null,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: const Text(
+                          'Return',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ],
       ),

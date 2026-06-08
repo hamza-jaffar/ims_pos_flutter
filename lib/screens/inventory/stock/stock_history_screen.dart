@@ -285,125 +285,14 @@ class _StockHistoryScreenState extends State<StockHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final listHeight = MediaQuery.of(context).size.height * 0.65;
+    final isMobile = MediaQuery.of(context).size.width < 768;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Stock Adjustment History',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textMain,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${_history.length} entries logged',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                OutlinedButton.icon(
-                  onPressed: _history.isEmpty ? null : _exportToExcel,
-                  icon: const Icon(Icons.table_chart, size: 18),
-                  label: const Text('Export Excel'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _history.isEmpty
-                        ? AppColors.textSecondary
-                        : AppColors.primary,
-                    side: BorderSide(
-                      color: _history.isEmpty
-                          ? AppColors.border
-                          : AppColors.primary,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: _history.isEmpty ? null : _exportToPDF,
-                  icon: const Icon(Icons.picture_as_pdf, size: 18),
-                  label: const Text('Export PDF'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _history.isEmpty
-                        ? AppColors.textSecondary
-                        : AppColors.primary,
-                    side: BorderSide(
-                      color: _history.isEmpty
-                          ? AppColors.border
-                          : AppColors.primary,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: _loadHistory,
-                  icon: const Icon(Icons.refresh, size: 18),
-                  label: const Text('Refresh'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.textMain,
-                    side: const BorderSide(color: AppColors.border),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: () => widget.onRouteSelected(AppRoutes.stocks),
-                  icon: const Icon(Icons.inventory_2_outlined, size: 18),
-                  label: const Text('Back to Stocks'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+        isMobile ? _buildMobileHeader() : _buildDesktopHeader(),
         const SizedBox(height: 20),
-        SizedBox(
-          height: 42,
-          child: TextField(
+        TextField(
             controller: _searchController,
             style: TextStyle(fontSize: 14, color: AppColors.textMain),
             decoration: InputDecoration(
@@ -428,7 +317,7 @@ class _StockHistoryScreenState extends State<StockHistoryScreen> {
                     )
                   : null,
               contentPadding: const EdgeInsets.symmetric(
-                vertical: 0,
+                vertical: 12,
                 horizontal: 16,
               ),
               border: OutlineInputBorder(
@@ -448,12 +337,11 @@ class _StockHistoryScreenState extends State<StockHistoryScreen> {
               ),
               filled: true,
               fillColor: AppColors.background.withAlpha(120),
+              isDense: true,
             ),
           ),
-        ),
         const SizedBox(height: 16),
         Container(
-          height: listHeight,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
@@ -500,6 +388,8 @@ class _StockHistoryScreenState extends State<StockHistoryScreen> {
                   ),
                 )
               : ListView.separated(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(16),
                   itemCount: _filtered.length,
                   separatorBuilder: (context, index) =>
@@ -521,18 +411,22 @@ class _StockHistoryScreenState extends State<StockHistoryScreen> {
                         border: Border.all(color: AppColors.border),
                       ),
                       child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                entry.productName ?? 'Unknown product',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
+                              Expanded(
+                                child: Text(
+                                  entry.productName ?? 'Unknown product',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
+                              const SizedBox(width: 8),
                               Text(
                                 _formatDate(entry.createdAt),
                                 style: TextStyle(
@@ -583,6 +477,134 @@ class _StockHistoryScreenState extends State<StockHistoryScreen> {
                 ),
         ),
       ],
+    );
+  }
+
+  Widget _buildDesktopHeader() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Stock Adjustment History',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textMain,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${_history.length} entries logged',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Flexible(child: _buildHeaderActions(compact: false)),
+      ],
+    );
+  }
+
+  Widget _buildMobileHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Stock Adjustment History',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textMain,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          '${_history.length} entries logged',
+          style: TextStyle(
+            fontSize: 13,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildHeaderActions(compact: true),
+      ],
+    );
+  }
+
+  Widget _buildHeaderActions({required bool compact}) {
+    final exportExcel = OutlinedButton.icon(
+      onPressed: _history.isEmpty ? null : _exportToExcel,
+      icon: const Icon(Icons.table_chart, size: 18),
+      label: const Text('Export Excel'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor:
+            _history.isEmpty ? AppColors.textSecondary : AppColors.primary,
+        side: BorderSide(
+          color: _history.isEmpty ? AppColors.border : AppColors.primary,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      ),
+    );
+    final exportPdf = OutlinedButton.icon(
+      onPressed: _history.isEmpty ? null : _exportToPDF,
+      icon: const Icon(Icons.picture_as_pdf, size: 18),
+      label: const Text('Export PDF'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor:
+            _history.isEmpty ? AppColors.textSecondary : AppColors.primary,
+        side: BorderSide(
+          color: _history.isEmpty ? AppColors.border : AppColors.primary,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      ),
+    );
+    final refresh = OutlinedButton.icon(
+      onPressed: _loadHistory,
+      icon: const Icon(Icons.refresh, size: 18),
+      label: const Text('Refresh'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.textMain,
+        side: const BorderSide(color: AppColors.border),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      ),
+    );
+    final back = ElevatedButton.icon(
+      onPressed: () => widget.onRouteSelected(AppRoutes.stocks),
+      icon: const Icon(Icons.inventory_2_outlined, size: 18),
+      label: const Text('Back to Stocks'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+
+    if (compact) {
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [exportExcel, exportPdf, refresh, back],
+      );
+    }
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: WrapAlignment.end,
+      children: [exportExcel, exportPdf, refresh, back],
     );
   }
 

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ims_pos_system/const/app_colors.dart';
 import 'package:ims_pos_system/services/platform_settings_service.dart';
+import 'package:ims_pos_system/screens/settings/qa_testing_tab.dart';
 
 // ────────────────────────────────────────────────────────────
 //  Timezone & date-format options
@@ -56,7 +57,7 @@ class _PlatformSettingsScreenState extends State<PlatformSettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -148,12 +149,18 @@ class _PlatformSettingsScreenState extends State<PlatformSettingsScreen>
                 text: 'Contact',
                 iconMargin: EdgeInsets.only(bottom: 4),
               ),
+              Tab(
+                icon: Icon(Icons.bug_report_outlined, size: 18),
+                text: 'QA Tools',
+                iconMargin: EdgeInsets.only(bottom: 4),
+              ),
             ],
           ),
         ),
 
         // ── Tab content ──────────────────────────────────────
         Container(
+          height: 520,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: const BorderRadius.vertical(
@@ -172,16 +179,14 @@ class _PlatformSettingsScreenState extends State<PlatformSettingsScreen>
               ),
             ],
           ),
-          child: SizedBox(
-            height: 600,
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _GeneralTab(onRouteSelected: widget.onRouteSelected),
-                _CurrencyTaxTab(onRouteSelected: widget.onRouteSelected),
-                _ContactTab(onRouteSelected: widget.onRouteSelected),
-              ],
-            ),
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _GeneralTab(onRouteSelected: widget.onRouteSelected),
+              _CurrencyTaxTab(onRouteSelected: widget.onRouteSelected),
+              _ContactTab(onRouteSelected: widget.onRouteSelected),
+              const QATestingTab(),
+            ],
           ),
         ),
       ],

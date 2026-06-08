@@ -9,15 +9,15 @@ const sidebarLinks = [
     name: 'Dashboard',
     route: AppRoutes.dashboard,
   ),
-  AppSidebarLink(
-    icon: Icons.layers_outlined,
-    name: 'Main',
-    type: SidebarLinkType.group,
-    children: [
-      AppSidebarLink(icon: Icons.supervisor_account_outlined, name: 'Admin'),
-    ],
-  ),
 
+  // AppSidebarLink(
+  //   icon: Icons.layers_outlined,
+  //   name: 'Main',
+  //   type: SidebarLinkType.group,
+  //   children: [
+  //     AppSidebarLink(icon: Icons.supervisor_account_outlined, name: 'Admin'),
+  //   ],
+  // ),
   AppSidebarLink(
     icon: Icons.layers_outlined,
     name: 'Inventory',
@@ -65,11 +65,6 @@ const sidebarLinks = [
         icon: Icons.point_of_sale_outlined,
         name: 'Pos',
         route: AppRoutes.pos,
-      ),
-      AppSidebarLink(
-        icon: Icons.history,
-        name: 'Sales History',
-        route: AppRoutes.salesHistory,
       ),
       AppSidebarLink(
         icon: Icons.receipt_long_outlined,
@@ -161,11 +156,11 @@ const sidebarLinks = [
         name: 'Platform Settings',
         route: AppRoutes.platformSettings,
       ),
-      AppSidebarLink(
-        icon: Icons.manage_accounts_outlined,
-        name: 'User Management',
-        route: AppRoutes.userManagement,
-      ),
+      // AppSidebarLink(
+      //   icon: Icons.manage_accounts_outlined,
+      //   name: 'User Management',
+      //   route: AppRoutes.userManagement,
+      // ),
     ],
   ),
 ];

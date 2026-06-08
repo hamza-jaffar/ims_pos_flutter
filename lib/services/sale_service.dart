@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:ims_pos_system/core/database/database_helper.dart';
 import 'package:ims_pos_system/models/purchase.dart';
 import 'package:ims_pos_system/models/purchase_item.dart';
@@ -38,7 +39,9 @@ class SaleService {
       [id],
     );
 
-    if (maps.isEmpty) return null;
+    if (maps.isEmpty) {
+      return null;
+    }
     final saleMap = maps.first;
 
     final itemMaps = await db.rawQuery(
@@ -77,7 +80,9 @@ class SaleService {
       [referenceNo],
     );
 
-    if (maps.isEmpty) return null;
+    if (maps.isEmpty) {
+      return null;
+    }
     final saleMap = maps.first;
     final id = saleMap['id'] as int;
 
@@ -155,11 +160,14 @@ class SaleService {
 
         // Determine stock adjustment based on sale type and status
         if (sale.type == 'Sale' && sale.status == 'Completed') {
-          // Normal sale: reduce stock
-          await txn.rawUpdate(
-            'UPDATE ${DatabaseHelper.productTable} SET quantity = quantity - ? WHERE id = ?',
-            [item.quantity, item.productId],
+          // Normal sale: reduce stock atomically
+          final rowsAffected = await txn.rawUpdate(
+            'UPDATE ${DatabaseHelper.productTable} SET quantity = quantity - ? WHERE id = ? AND quantity >= ?',
+            [item.quantity, item.productId, item.quantity],
           );
+          if (rowsAffected == 0) {
+            throw Exception('Insufficient stock or product not found for product ID: ${item.productId}');
+          }
         } else if (sale.type == 'SaleReturn' && sale.status == 'Completed') {
           // Return: increase stock back
           await txn.rawUpdate(
@@ -271,23 +279,40 @@ class SaleService {
     final db = await _db.database;
     final results = <Purchase>[];
 
+    // Query sales table (new)
     if (filterType == 'Sale' || filterType == 'All') {
-      final saleMaps = await db.rawQuery('''
-        SELECT *
-        FROM $_table
-        ORDER BY created_at DESC
-      ''');
-      results.addAll(saleMaps.map((m) => Purchase.fromMap(m)).toList());
+      final saleMaps = await db.rawQuery(
+        '''
+        SELECT s.*, sup.name as supplier_name
+        FROM $_table s
+        LEFT JOIN ${DatabaseHelper.supplierTable} sup ON s.supplier_id = sup.id
+        WHERE s.type = ?
+        ORDER BY s.created_at DESC
+      ''',
+        ['Sale'],
+      );
+      results.addAll(
+        saleMaps.map((m) {
+          Supplier? supplier;
+          if (m['supplier_id'] != null) {
+            supplier = Supplier(
+              id: m['supplier_id'] as int,
+              name: m['supplier_name'] as String? ?? 'Unknown',
+            );
+          }
+          return Purchase.fromMap(m, supplier: supplier);
+        }).toList(),
+      );
     }
 
     if (filterType == 'SaleReturn' || filterType == 'All') {
       final returnMaps = await db.rawQuery(
         '''
-        SELECT p.*, s.name as supplier_name
-        FROM ${DatabaseHelper.purchaseTable} p
-        LEFT JOIN ${DatabaseHelper.supplierTable} s ON p.supplier_id = s.id
-        WHERE p.type = ?
-        ORDER BY p.created_at DESC
+        SELECT s.*, sup.name as supplier_name
+        FROM $_table s
+        LEFT JOIN ${DatabaseHelper.supplierTable} sup ON s.supplier_id = sup.id
+        WHERE s.type = ?
+        ORDER BY s.created_at DESC
       ''',
         ['SaleReturn'],
       );
@@ -305,15 +330,78 @@ class SaleService {
       );
     }
 
-    if (filterType == 'All') {
-      results.sort(
-        (a, b) => b.createdAt!.compareTo(
-          a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
-        ),
-      );
+    // Also query purchase table for legacy sales data
+    debugPrint('📊 Querying purchase table for legacy sales...');
+    try {
+      if (filterType == 'Sale' || filterType == 'All') {
+        final legacySaleMaps = await db.rawQuery(
+          '''
+          SELECT p.*, s.name as supplier_name
+          FROM ${DatabaseHelper.purchaseTable} p
+          LEFT JOIN ${DatabaseHelper.supplierTable} s ON p.supplier_id = s.id
+          WHERE p.type = ?
+          ORDER BY p.created_at DESC
+        ''',
+          ['Sale'],
+        );
+        debugPrint('   Found ${legacySaleMaps.length} legacy sales');
+        results.addAll(
+          legacySaleMaps.map((m) {
+            Supplier? supplier;
+            if (m['supplier_id'] != null) {
+              supplier = Supplier(
+                id: m['supplier_id'] as int,
+                name: m['supplier_name'] as String? ?? 'Unknown',
+              );
+            }
+            return Purchase.fromMap(m, supplier: supplier);
+          }).toList(),
+        );
+      }
+
+      if (filterType == 'SaleReturn' || filterType == 'All') {
+        final legacyReturnMaps = await db.rawQuery(
+          '''
+          SELECT p.*, s.name as supplier_name
+          FROM ${DatabaseHelper.purchaseTable} p
+          LEFT JOIN ${DatabaseHelper.supplierTable} s ON p.supplier_id = s.id
+          WHERE p.type = ?
+          ORDER BY p.created_at DESC
+        ''',
+          ['SaleReturn'],
+        );
+        debugPrint('   Found ${legacyReturnMaps.length} legacy returns');
+        results.addAll(
+          legacyReturnMaps.map((m) {
+            Supplier? supplier;
+            if (m['supplier_id'] != null) {
+              supplier = Supplier(
+                id: m['supplier_id'] as int,
+                name: m['supplier_name'] as String? ?? 'Unknown',
+              );
+            }
+            return Purchase.fromMap(m, supplier: supplier);
+          }).toList(),
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error querying purchase table: $e');
     }
 
-    return results;
+    final uniq = <String, Purchase>{};
+    for (final purchase in results) {
+      uniq[purchase.referenceNo] ??= purchase;
+    }
+
+    final merged = uniq.values.toList();
+    merged.sort(
+      (a, b) => b.createdAt!.compareTo(
+        a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+      ),
+    );
+
+    debugPrint('✅ Total unique sales: ${merged.length}');
+    return merged;
   }
 
   Future<List<Map<String, dynamic>>> getMonthlyTotals({int months = 6}) async {

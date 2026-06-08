@@ -227,15 +227,27 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
         ),
 
         // List
-        Expanded(
-          child: _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _filtered.isEmpty
-                  ? Center(child: Text('No invoices found.', style: TextStyle(color: AppColors.textSecondary)))
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                      itemCount: _filtered.length,
-                      itemBuilder: (ctx, i) {
+        _isLoading
+            ? const Padding(
+                padding: EdgeInsets.symmetric(vertical: 40),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            : _filtered.isEmpty
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    child: Center(
+                      child: Text(
+                        'No invoices found.',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    itemCount: _filtered.length,
+                    itemBuilder: (ctx, i) {
                         final invoice = _filtered[i];
                         Color typeColor = Colors.blue;
                         if (invoice.type == 'Sale') typeColor = Colors.green;
@@ -284,7 +296,6 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                         );
                       },
                     ),
-        ),
       ],
     );
   }

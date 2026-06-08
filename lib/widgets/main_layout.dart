@@ -7,10 +7,10 @@ import 'package:ims_pos_system/widgets/app_header.dart';
 import 'package:ims_pos_system/widgets/app_sidebar.dart';
 
 class MainLayout extends StatefulWidget {
-  final Widget child;
+  final Widget? child;
   final String activeRoute;
 
-  const MainLayout({super.key, required this.child, this.activeRoute = ''});
+  const MainLayout({super.key, this.child, this.activeRoute = AppRoutes.dashboard});
 
   @override
   State<MainLayout> createState() => _MainLayoutState();
@@ -24,8 +24,12 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   void initState() {
     super.initState();
-    _activeChild = widget.child;
-    _activeRoute = widget.activeRoute;
+    _activeRoute = widget.activeRoute.isEmpty ? AppRoutes.dashboard : widget.activeRoute;
+    if (widget.child != null) {
+      _activeChild = widget.child!;
+    } else {
+      _activeChild = AppRoutes.getContent(_activeRoute, onRouteSelected: _updateRoute) ?? const SizedBox();
+    }
   }
 
   @override
@@ -34,8 +38,12 @@ class _MainLayoutState extends State<MainLayout> {
     if (oldWidget.child != widget.child ||
         oldWidget.activeRoute != widget.activeRoute) {
       setState(() {
-        _activeChild = widget.child;
-        _activeRoute = widget.activeRoute;
+        _activeRoute = widget.activeRoute.isEmpty ? AppRoutes.dashboard : widget.activeRoute;
+        if (widget.child != null) {
+          _activeChild = widget.child!;
+        } else {
+          _activeChild = AppRoutes.getContent(_activeRoute, onRouteSelected: _updateRoute) ?? const SizedBox();
+        }
       });
     }
   }
@@ -100,16 +108,28 @@ class _MainLayoutState extends State<MainLayout> {
                   onRouteSelected: _updateRoute,
                 ),
                 Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      return SizedBox(
-                        height: constraints.maxHeight,
-                        child: Container(
-                          padding: const EdgeInsets.all(24.0),
-                          child: _activeChild,
-                        ),
-                      );
-                    },
+                  child: ScrollConfiguration(
+                    // Push scrollbars to the very edge of the viewport
+                    behavior: const ScrollBehavior().copyWith(
+                      scrollbars: true,
+                      overscroll: false,
+                    ),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        return SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minHeight: constraints.maxHeight,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(24.0),
+                              child: _activeChild,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ),
               ],

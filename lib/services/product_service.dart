@@ -79,16 +79,19 @@ class ProductService {
       LEFT JOIN brands b ON p.brand_id = b.id
       LEFT JOIN suppliers s ON p.supplier_id = s.id
       LEFT JOIN rooms r ON p.room_id = r.id
-      WHERE p.name LIKE ? 
-         OR p.code LIKE ? 
-         OR p.barcode LIKE ?
-         OR c.name LIKE ? 
-         OR b.name LIKE ? 
-         OR s.name LIKE ?
-         OR r.name LIKE ?
-      ORDER BY p.created_at DESC
+      WHERE p.is_active = 1
+        AND (
+          LOWER(p.name) LIKE ? 
+          OR LOWER(p.code) LIKE ? 
+          OR LOWER(p.barcode) LIKE ?
+          OR LOWER(c.name) LIKE ? 
+          OR LOWER(b.name) LIKE ? 
+          OR LOWER(s.name) LIKE ?
+          OR LOWER(r.name) LIKE ?
+        )
+      ORDER BY p.name ASC
     ''';
-    final searchVal = '%$query%';
+    final searchVal = '%${query.toLowerCase()}%';
     final maps = await db.rawQuery(sql, [
       searchVal,
       searchVal,

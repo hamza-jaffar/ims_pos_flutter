@@ -9,13 +9,6 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MainLayout(
-      child: Center(
-        child: Text(
-          'Your Active Screen Content Loaded Here!',
-          style: TextStyle(fontSize: 18, color: Colors.grey.shade700),
-        ),
-      ),
-    );
+    return const MainLayout();
   }
 }

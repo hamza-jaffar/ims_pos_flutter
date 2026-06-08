@@ -259,10 +259,7 @@ class AppRoutes {
     // Parameterized: /search/:query
     if (route.startsWith('/search/')) {
       final query = Uri.decodeComponent(route.substring('/search/'.length));
-      return SearchResultsScreen(
-        query: query,
-        onRouteSelected: callback,
-      );
+      return SearchResultsScreen(query: query, onRouteSelected: callback);
     }
 
     return null;

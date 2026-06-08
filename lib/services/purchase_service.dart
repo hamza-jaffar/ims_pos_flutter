@@ -63,15 +63,17 @@ class PurchaseService {
             [item.quantity, item.productId],
           );
         } else if (purchase.type == 'Return' && purchase.status == 'Returned') {
-          await txn.rawUpdate(
-            'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ?',
-            [item.quantity, item.productId],
+          final rows = await txn.rawUpdate(
+            'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ? AND quantity >= ?',
+            [item.quantity, item.productId, item.quantity],
           );
+          if (rows == 0) throw Exception('Insufficient stock for product ID: ${item.productId}');
         } else if (purchase.type == 'Sale' && purchase.status == 'Completed') {
-          await txn.rawUpdate(
-            'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ?',
-            [item.quantity, item.productId],
+          final rows = await txn.rawUpdate(
+            'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ? AND quantity >= ?',
+            [item.quantity, item.productId, item.quantity],
           );
+          if (rows == 0) throw Exception('Insufficient stock for product ID: ${item.productId}');
         } else if (purchase.type == 'SaleReturn' &&
             purchase.status == 'Completed') {
           await txn.rawUpdate(
@@ -240,10 +242,11 @@ class PurchaseService {
 
         if (p.type == 'Purchase' && p.status == 'Received') {
           for (var item in items) {
-            await txn.rawUpdate(
-              'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ?',
-              [item['quantity'], item['product_id']],
+            final rows = await txn.rawUpdate(
+              'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ? AND quantity >= ?',
+              [item['quantity'], item['product_id'], item['quantity']],
             );
+            if (rows == 0) throw Exception('Insufficient stock for product ID: ${item['product_id']}');
           }
         } else if (p.type == 'Return' && p.status == 'Returned') {
           for (var item in items) {
@@ -261,10 +264,11 @@ class PurchaseService {
           }
         } else if (p.type == 'SaleReturn' && p.status == 'Completed') {
           for (var item in items) {
-            await txn.rawUpdate(
-              'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ?',
-              [item['quantity'], item['product_id']],
+            final rows = await txn.rawUpdate(
+              'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ? AND quantity >= ?',
+              [item['quantity'], item['product_id'], item['quantity']],
             );
+            if (rows == 0) throw Exception('Insufficient stock for product ID: ${item['product_id']}');
           }
         }
       }
@@ -349,10 +353,11 @@ class PurchaseService {
             whereArgs: [id],
           );
           for (var item in items) {
-            await txn.rawUpdate(
-              'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ?',
-              [item['quantity'], item['product_id']],
+            final rows = await txn.rawUpdate(
+              'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ? AND quantity >= ?',
+              [item['quantity'], item['product_id'], item['quantity']],
             );
+            if (rows == 0) throw Exception('Insufficient stock for product ID: ${item['product_id']}');
           }
         }
       }
@@ -365,10 +370,11 @@ class PurchaseService {
             whereArgs: [id],
           );
           for (var item in items) {
-            await txn.rawUpdate(
-              'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ?',
-              [item['quantity'], item['product_id']],
+            final rows = await txn.rawUpdate(
+              'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ? AND quantity >= ?',
+              [item['quantity'], item['product_id'], item['quantity']],
             );
+            if (rows == 0) throw Exception('Insufficient stock for product ID: ${item['product_id']}');
           }
         } else if (oldPurchase.status == 'Returned' &&
             updatedStatus != 'Returned') {
@@ -394,10 +400,11 @@ class PurchaseService {
             whereArgs: [id],
           );
           for (var item in items) {
-            await txn.rawUpdate(
-              'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ?',
-              [item['quantity'], item['product_id']],
+            final rows = await txn.rawUpdate(
+              'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ? AND quantity >= ?',
+              [item['quantity'], item['product_id'], item['quantity']],
             );
+            if (rows == 0) throw Exception('Insufficient stock for product ID: ${item['product_id']}');
           }
         } else if (oldPurchase.status == 'Completed' &&
             updatedStatus != 'Completed') {
@@ -436,10 +443,11 @@ class PurchaseService {
             whereArgs: [id],
           );
           for (var item in items) {
-            await txn.rawUpdate(
-              'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ?',
-              [item['quantity'], item['product_id']],
+            final rows = await txn.rawUpdate(
+              'UPDATE $_productTable SET quantity = quantity - ? WHERE id = ? AND quantity >= ?',
+              [item['quantity'], item['product_id'], item['quantity']],
             );
+            if (rows == 0) throw Exception('Insufficient stock for product ID: ${item['product_id']}');
           }
         }
       }

@@ -49,9 +49,19 @@ const sidebarLinks = [
         route: AppRoutes.categories,
       ),
       AppSidebarLink(
+        icon: Icons.device_hub_outlined,
+        name: 'Models',
+        route: AppRoutes.models,
+      ),
+      AppSidebarLink(
         icon: Icons.branding_watermark_outlined,
         name: 'Brands',
         route: AppRoutes.brands,
+      ),
+      AppSidebarLink(
+        icon: Icons.high_quality_outlined,
+        name: 'Qualities',
+        route: AppRoutes.qualities,
       ),
     ],
   ),

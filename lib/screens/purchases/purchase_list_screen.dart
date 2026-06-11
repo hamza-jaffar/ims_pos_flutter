@@ -28,6 +28,7 @@ class _PurchaseListScreenState extends State<PurchaseListScreen> {
   bool _isLoading = true;
   final Set<int> _hoveredRows = {};
   final TextEditingController _searchController = TextEditingController();
+  int _displayLimit = 20;
 
   @override
   void initState() {
@@ -87,6 +88,7 @@ class _PurchaseListScreenState extends State<PurchaseListScreen> {
               return p.referenceNo.toLowerCase().contains(q) ||
                   (p.supplier?.name.toLowerCase().contains(q) ?? false);
             }).toList();
+      _displayLimit = 20; // reset on filter
     });
   }
 
@@ -610,11 +612,25 @@ class _PurchaseListScreenState extends State<PurchaseListScreen> {
         ListView.separated(
           physics: const NeverScrollableScrollPhysics(),
           shrinkWrap: true,
-          itemCount: _filtered.length,
+          itemCount: _filtered.length > _displayLimit ? _displayLimit : _filtered.length,
           separatorBuilder: (_, _) =>
               Divider(height: 1, color: AppColors.border),
           itemBuilder: (_, index) => _buildRow(_filtered[index], index),
         ),
+        if (_filtered.length > _displayLimit)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+              child: TextButton(
+                onPressed: () {
+                  setState(() {
+                    _displayLimit += 20;
+                  });
+                },
+                child: const Text('Load More'),
+              ),
+            ),
+          ),
       ],
     );
   }

@@ -8,6 +8,7 @@ class PurchaseItem {
   final double unitCost;
   final double subtotal;
   final double costPrice;
+  final int returnQty;
 
   // Optional related data
   final Product? product;
@@ -20,6 +21,7 @@ class PurchaseItem {
     required this.unitCost,
     required this.subtotal,
     this.costPrice = 0.0,
+    this.returnQty = 0,
     this.product,
   });
 
@@ -32,6 +34,7 @@ class PurchaseItem {
       'unit_cost': unitCost,
       'subtotal': subtotal,
       'cost_price': costPrice,
+      'return_qty': returnQty,
     };
   }
 
@@ -46,6 +49,7 @@ class PurchaseItem {
       costPrice: map['cost_price'] != null
           ? (map['cost_price'] as num).toDouble()
           : 0.0,
+      returnQty: (map['return_qty'] as num?)?.toInt() ?? 0,
       product: product,
     );
   }
@@ -58,6 +62,7 @@ class PurchaseItem {
     int? quantity,
     double? unitCost,
     double? subtotal,
+    int? returnQty,
     Product? product,
   }) {
     return PurchaseItem(
@@ -68,6 +73,7 @@ class PurchaseItem {
       unitCost: unitCost ?? this.unitCost,
       subtotal: subtotal ?? this.subtotal,
       costPrice: costPrice ?? this.costPrice,
+      returnQty: returnQty ?? this.returnQty,
       product: product ?? this.product,
     );
   }

@@ -4,6 +4,7 @@ import 'package:ims_pos_system/models/purchase.dart';
 import 'package:ims_pos_system/models/purchase_item.dart';
 import 'package:ims_pos_system/models/product.dart';
 import 'package:ims_pos_system/models/supplier.dart';
+import 'package:ims_pos_system/services/platform_settings_service.dart';
 
 class SaleService {
   SaleService._();
@@ -160,13 +161,27 @@ class SaleService {
 
         // Determine stock adjustment based on sale type and status
         if (sale.type == 'Sale' && sale.status == 'Completed') {
-          // Normal sale: reduce stock atomically
-          final rowsAffected = await txn.rawUpdate(
-            'UPDATE ${DatabaseHelper.productTable} SET quantity = quantity - ? WHERE id = ? AND quantity >= ?',
-            [item.quantity, item.productId, item.quantity],
-          );
-          if (rowsAffected == 0) {
-            throw Exception('Insufficient stock or product not found for product ID: ${item.productId}');
+          final allowNegative = PlatformSettingsService
+              .instance.settings.continueSellingWhenStockEmpty;
+
+          if (allowNegative) {
+            // Toggle ON: allow selling below zero — just deduct unconditionally
+            final rowsAffected = await txn.rawUpdate(
+              'UPDATE ${DatabaseHelper.productTable} SET quantity = quantity - ? WHERE id = ?',
+              [item.quantity, item.productId],
+            );
+            if (rowsAffected == 0) {
+              throw Exception('Product not found for ID: ${item.productId}');
+            }
+          } else {
+            // Toggle OFF: enforce stock guard at DB level
+            final rowsAffected = await txn.rawUpdate(
+              'UPDATE ${DatabaseHelper.productTable} SET quantity = quantity - ? WHERE id = ? AND quantity >= ?',
+              [item.quantity, item.productId, item.quantity],
+            );
+            if (rowsAffected == 0) {
+              throw Exception('Insufficient stock or product not found for product ID: ${item.productId}');
+            }
           }
         } else if (sale.type == 'SaleReturn' && sale.status == 'Completed') {
           // Return: increase stock back
@@ -220,18 +235,26 @@ class SaleService {
                       .toDouble();
 
                   if (remainingQty <= 0) {
-                    // All units returned, delete the item from original invoice
+                    // All units returned — update return_qty then delete
+                    await txn.rawUpdate(
+                      'UPDATE $_itemTable SET return_qty = return_qty + ? WHERE id = ?',
+                      [returnedQty, origItemRow['id']],
+                    );
                     await txn.delete(
                       _itemTable,
                       where: 'id = ?',
                       whereArgs: [origItemRow['id']],
                     );
                   } else {
-                    // Update quantity and subtotal for partial return
+                    // Partial return — update quantity, subtotal, and return_qty
                     final newSubtotal = remainingQty * unitPrice;
                     await txn.update(
                       _itemTable,
-                      {'quantity': remainingQty, 'subtotal': newSubtotal},
+                      {
+                        'quantity': remainingQty,
+                        'subtotal': newSubtotal,
+                        'return_qty': (origItemRow['return_qty'] as num? ?? 0).toInt() + returnedQty,
+                      },
                       where: 'id = ?',
                       whereArgs: [origItemRow['id']],
                     );
@@ -275,9 +298,26 @@ class SaleService {
     });
   }
 
-  Future<List<Purchase>> getAllSalesHistory({String filterType = 'All'}) async {
+  Future<List<Purchase>> getAllSalesHistory({
+    String filterType = 'All',
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
     final db = await _db.database;
     final results = <Purchase>[];
+
+    String dateWhere = '';
+    List<dynamic> dateArgs = [];
+    if (startDate != null && endDate != null) {
+      dateWhere = ' AND s.purchase_date BETWEEN ? AND ?';
+      dateArgs = [startDate.toIso8601String(), endDate.toIso8601String()];
+    } else if (startDate != null) {
+      dateWhere = ' AND s.purchase_date >= ?';
+      dateArgs = [startDate.toIso8601String()];
+    } else if (endDate != null) {
+      dateWhere = ' AND s.purchase_date <= ?';
+      dateArgs = [endDate.toIso8601String()];
+    }
 
     // Query sales table (new)
     if (filterType == 'Sale' || filterType == 'All') {
@@ -286,10 +326,10 @@ class SaleService {
         SELECT s.*, sup.name as supplier_name
         FROM $_table s
         LEFT JOIN ${DatabaseHelper.supplierTable} sup ON s.supplier_id = sup.id
-        WHERE s.type = ?
+        WHERE s.type = ?$dateWhere
         ORDER BY s.created_at DESC
       ''',
-        ['Sale'],
+        ['Sale', ...dateArgs],
       );
       results.addAll(
         saleMaps.map((m) {
@@ -311,10 +351,10 @@ class SaleService {
         SELECT s.*, sup.name as supplier_name
         FROM $_table s
         LEFT JOIN ${DatabaseHelper.supplierTable} sup ON s.supplier_id = sup.id
-        WHERE s.type = ?
+        WHERE s.type = ?$dateWhere
         ORDER BY s.created_at DESC
       ''',
-        ['SaleReturn'],
+        ['SaleReturn', ...dateArgs],
       );
       results.addAll(
         returnMaps.map((m) {
@@ -333,16 +373,17 @@ class SaleService {
     // Also query purchase table for legacy sales data
     debugPrint('📊 Querying purchase table for legacy sales...');
     try {
+      String pDateWhere = dateWhere.replaceAll('s.purchase_date', 'p.purchase_date');
       if (filterType == 'Sale' || filterType == 'All') {
         final legacySaleMaps = await db.rawQuery(
           '''
           SELECT p.*, s.name as supplier_name
           FROM ${DatabaseHelper.purchaseTable} p
           LEFT JOIN ${DatabaseHelper.supplierTable} s ON p.supplier_id = s.id
-          WHERE p.type = ?
+          WHERE p.type = ?$pDateWhere
           ORDER BY p.created_at DESC
         ''',
-          ['Sale'],
+          ['Sale', ...dateArgs],
         );
         debugPrint('   Found ${legacySaleMaps.length} legacy sales');
         results.addAll(
@@ -365,10 +406,10 @@ class SaleService {
           SELECT p.*, s.name as supplier_name
           FROM ${DatabaseHelper.purchaseTable} p
           LEFT JOIN ${DatabaseHelper.supplierTable} s ON p.supplier_id = s.id
-          WHERE p.type = ?
+          WHERE p.type = ?$pDateWhere
           ORDER BY p.created_at DESC
         ''',
-          ['SaleReturn'],
+          ['SaleReturn', ...dateArgs],
         );
         debugPrint('   Found ${legacyReturnMaps.length} legacy returns');
         results.addAll(
@@ -402,6 +443,29 @@ class SaleService {
 
     debugPrint('✅ Total unique sales: ${merged.length}');
     return merged;
+  }
+
+  Future<List<Purchase>> getPaginatedSalesHistory({
+    String filterType = 'All',
+    int limit = 20,
+    int offset = 0,
+    String? searchQuery,
+  }) async {
+    // For now we use the existing merged logic and paginate in memory
+    // because sales data is currently split across legacy and new tables.
+    final allSales = await getAllSalesHistory(filterType: filterType);
+    
+    Iterable<Purchase> filtered = allSales;
+    if (searchQuery != null && searchQuery.trim().isNotEmpty) {
+      final q = searchQuery.trim().toLowerCase();
+      filtered = allSales.where((s) {
+        return (s.referenceNo.toLowerCase().contains(q)) ||
+               (s.supplier?.name.toLowerCase().contains(q) ?? false) ||
+               (s.note?.toLowerCase().contains(q) ?? false);
+      });
+    }
+
+    return filtered.skip(offset).take(limit).toList();
   }
 
   Future<List<Map<String, dynamic>>> getMonthlyTotals({int months = 6}) async {

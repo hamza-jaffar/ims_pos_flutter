@@ -19,6 +19,7 @@ class _LowStocksScreenState extends State<LowStocksScreen> {
   bool _isLoading = true;
   final Set<int> _hoveredRows = {};
   final TextEditingController _searchController = TextEditingController();
+  int _displayLimit = 20;
 
   @override
   void initState() {
@@ -68,6 +69,7 @@ class _LowStocksScreenState extends State<LowStocksScreen> {
                   (p.supplierName?.toLowerCase().contains(q) ?? false) ||
                   (p.categoryName?.toLowerCase().contains(q) ?? false);
             }).toList();
+      _displayLimit = 20;
     });
   }
 
@@ -255,7 +257,21 @@ class _LowStocksScreenState extends State<LowStocksScreen> {
                 )
               : _filtered.isEmpty
                   ? _buildEmpty()
-                  : (isMobile ? _buildCardList() : _buildTable()),
+                  : Column(
+                      children: [
+                        isMobile ? _buildCardList() : _buildTable(),
+                        if (_filtered.length > _displayLimit)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            child: Center(
+                              child: TextButton(
+                                onPressed: () => setState(() => _displayLimit += 20),
+                                child: const Text('Load More'),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
         ),
       ],
     );
@@ -321,7 +337,7 @@ class _LowStocksScreenState extends State<LowStocksScreen> {
         ListView.separated(
           physics: const NeverScrollableScrollPhysics(),
           shrinkWrap: true,
-          itemCount: _filtered.length,
+          itemCount: _filtered.length > _displayLimit ? _displayLimit : _filtered.length,
           separatorBuilder: (_, _) => const Divider(height: 1, color: AppColors.border),
           itemBuilder: (_, index) => _buildRow(_filtered[index], index),
         ),
@@ -435,7 +451,7 @@ class _LowStocksScreenState extends State<LowStocksScreen> {
     return ListView.separated(
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
-      itemCount: _filtered.length,
+      itemCount: _filtered.length > _displayLimit ? _displayLimit : _filtered.length,
       separatorBuilder: (_, _) => const Divider(height: 1, color: AppColors.border),
       itemBuilder: (_, index) => _buildCardItem(_filtered[index]),
     );

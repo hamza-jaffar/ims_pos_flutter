@@ -119,8 +119,10 @@ class _EditSupplierScreenState extends State<EditSupplierScreen> {
 
     setState(() => _isSaving = true);
 
-    final updated = _supplier!.copyWith(
+    final updated = Supplier(
+      id: _supplier!.id,
       name: _nameController.text.trim(),
+      code: _supplier!.code,
       email: _emailController.text.trim().isEmpty
           ? null
           : _emailController.text.trim(),
@@ -152,6 +154,7 @@ class _EditSupplierScreenState extends State<EditSupplierScreen> {
           ? null
           : _taxIdController.text.trim(),
       isActive: _isActive,
+      createdAt: _supplier!.createdAt,
       updatedAt: DateTime.now(),
     );
 

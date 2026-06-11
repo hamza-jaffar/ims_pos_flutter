@@ -1,68 +1,81 @@
 import 'package:flutter/material.dart';
 import 'package:ims_pos_system/app_routes.dart';
 import 'package:ims_pos_system/const/app_colors.dart';
-import 'package:ims_pos_system/models/category.dart';
-import 'package:ims_pos_system/services/category_service.dart';
+import 'package:ims_pos_system/models/product_model.dart';
+import 'package:ims_pos_system/models/brand.dart';
+import 'package:ims_pos_system/services/product_model_service.dart';
+import 'package:ims_pos_system/services/brand_service.dart';
+import 'package:ims_pos_system/widgets/searchable_dropdown.dart';
 
-class EditCategoryScreen extends StatefulWidget {
+class EditModelScreen extends StatefulWidget {
   final ValueChanged<String> onRouteSelected;
-  final int categoryId;
-  final Category? initialCategory;
+  final int modelId;
+  final ProductModel? initialModel;
 
-  const EditCategoryScreen({
+  const EditModelScreen({
     super.key,
     required this.onRouteSelected,
-    required this.categoryId,
-    this.initialCategory,
+    required this.modelId,
+    this.initialModel,
   });
 
   @override
-  State<EditCategoryScreen> createState() => _EditCategoryScreenState();
+  State<EditModelScreen> createState() => _EditModelScreenState();
 }
 
-class _EditCategoryScreenState extends State<EditCategoryScreen> {
+class _EditModelScreenState extends State<EditModelScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
+  int? _selectedBrandId;
+  List<Brand> _brands = [];
   bool _isActive = true;
   bool _isSaving = false;
   bool _isLoading = true;
-  Category? _category;
+  ProductModel? _model;
 
   @override
   void initState() {
     super.initState();
-    if (widget.initialCategory != null) {
-      _populateFields(widget.initialCategory!);
-      _isLoading = false;
-    } else {
-      _loadCategory();
-    }
+    _loadData();
   }
 
-  Future<void> _loadCategory() async {
-    final cat = await CategoryService.instance.getById(widget.categoryId);
-    if (mounted) {
-      if (cat != null) {
-        _populateFields(cat);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Category not found.'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
-        widget.onRouteSelected(AppRoutes.categories);
+  Future<void> _loadData() async {
+    try {
+      final brands = await BrandService.instance.getAll();
+      ProductModel? model = widget.initialModel;
+      model ??= await ProductModelService.instance.getById(widget.modelId);
+
+      if (mounted) {
+        if (model != null) {
+          _populateFields(model);
+          setState(() {
+            _brands = brands.where((b) => b.isActive || b.id == model!.brandId).toList();
+            _isLoading = false;
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Model not found.'),
+              backgroundColor: AppColors.danger,
+            ),
+          );
+          widget.onRouteSelected(AppRoutes.models);
+        }
       }
-      setState(() => _isLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  void _populateFields(Category cat) {
-    _category = cat;
-    _nameController.text = cat.name;
-    _descriptionController.text = cat.description ?? '';
-    _isActive = cat.isActive;
+  void _populateFields(ProductModel model) {
+    _model = model;
+    _nameController.text = model.name;
+    _descriptionController.text = model.description ?? '';
+    _selectedBrandId = model.brandId;
+    _isActive = model.isActive;
   }
 
   @override
@@ -74,16 +87,16 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
 
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_category == null) return;
+    if (_model == null) return;
 
-    final nameExists = await CategoryService.instance.nameExists(
+    final nameExists = await ProductModelService.instance.nameExists(
       _nameController.text.trim(),
-      excludeId: _category!.id,
+      excludeId: _model!.id,
     );
     if (nameExists && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('A category with this name already exists.'),
+          content: Text('A model with this name already exists.'),
           backgroundColor: AppColors.danger,
         ),
       );
@@ -92,36 +105,37 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
 
     setState(() => _isSaving = true);
 
-    final updated = Category(
-      id: _category!.id,
+    final updated = ProductModel(
+      id: _model!.id,
       name: _nameController.text.trim(),
-      code: _category!.code,
+      code: _model!.code,
+      brandId: _selectedBrandId,
       description: _descriptionController.text.trim().isEmpty
           ? null
           : _descriptionController.text.trim(),
       isActive: _isActive,
-      createdAt: _category!.createdAt,
+      createdAt: _model!.createdAt,
+      updatedAt: DateTime.now(),
     );
 
     try {
-      await CategoryService.instance.update(updated);
-
+      await ProductModelService.instance.update(updated);
       if (mounted) {
         setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Category updated successfully!'),
+            content: Text('Model updated successfully!'),
             backgroundColor: AppColors.success,
           ),
         );
-        widget.onRouteSelected(AppRoutes.categories);
+        widget.onRouteSelected(AppRoutes.models);
       }
     } catch (error) {
       if (mounted) {
         setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update category: $error'),
+            content: Text('Failed to update model: $error'),
             backgroundColor: AppColors.danger,
           ),
         );
@@ -142,14 +156,14 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
           Row(
             children: [
               TextButton.icon(
-                onPressed: () => widget.onRouteSelected('/categories'),
+                onPressed: () => widget.onRouteSelected(AppRoutes.models),
                 icon: const Icon(
                   Icons.arrow_back,
                   size: 18,
                   color: AppColors.primary,
                 ),
                 label: const Text(
-                  'Back to Categories',
+                  'Back to Models',
                   style: TextStyle(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w600,
@@ -160,7 +174,7 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Edit Category',
+            'Edit Model',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -169,7 +183,7 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Update the details for "${_category?.name ?? ''}".',
+            'Update the details for "${_model?.name ?? ''}".',
             style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
           ),
           const SizedBox(height: 24),
@@ -195,18 +209,31 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                   LayoutBuilder(
                     builder: (context, constraints) {
                       return _buildField(
-                        'Category Name *',
+                        'Model Name *',
                         _nameController,
-                        'e.g. Electronics',
+                        'e.g. iPhone 14',
                         required: true,
                       );
                     },
                   ),
                   const SizedBox(height: 20),
+                  SearchableDropdown<int>(
+                    label: 'Brand',
+                    hint: 'Search and select brand...',
+                    selectedValue: _selectedBrandId,
+                    items: _brands
+                        .map((b) => SearchableDropdownItem<int>(
+                              value: b.id!,
+                              label: b.name,
+                            ))
+                        .toList(),
+                    onChanged: (val) => setState(() => _selectedBrandId = val),
+                  ),
+                  const SizedBox(height: 20),
                   _buildTextArea(
                     'Description',
                     _descriptionController,
-                    'Enter category description...',
+                    'Enter model description...',
                   ),
                   const SizedBox(height: 20),
                   Row(
@@ -249,8 +276,9 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                             OutlinedButton(
                               onPressed: _isSaving
                                   ? null
-                                  : () =>
-                                        widget.onRouteSelected(AppRoutes.categories),
+                                  : () => widget.onRouteSelected(
+                                      AppRoutes.models,
+                                    ),
                               style: OutlinedButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 16,
@@ -294,71 +322,74 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                                       ),
                                     )
                                   : const Text(
-                                      'Update Category',
-                                      style: TextStyle(fontWeight: FontWeight.w600),
-                                    ),
-                            ),
-                          ],
-                        );
-                      } else {
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            OutlinedButton(
-                              onPressed: _isSaving
-                                  ? null
-                                  : () =>
-                                        widget.onRouteSelected(AppRoutes.categories),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 16,
-                                ),
-                                side: const BorderSide(color: AppColors.border),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              child: const Text(
-                                'Cancel',
-                                style: TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            ElevatedButton(
-                              onPressed: _isSaving ? null : _handleSave,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 16,
-                                ),
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              child: _isSaving
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
+                                      'Update Model',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
                                       ),
-                                    )
-                                  : const Text(
-                                      'Update Category',
-                                      style: TextStyle(fontWeight: FontWeight.w600),
                                     ),
                             ),
                           ],
                         );
                       }
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton(
+                            onPressed: _isSaving
+                                ? null
+                                : () =>
+                                      widget.onRouteSelected(AppRoutes.models),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 16,
+                              ),
+                              side: const BorderSide(color: AppColors.border),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          ElevatedButton(
+                            onPressed: _isSaving ? null : _handleSave,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 16,
+                              ),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: _isSaving
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Update Model',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      );
                     },
                   ),
                 ],

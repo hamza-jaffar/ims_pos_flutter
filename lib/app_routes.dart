@@ -6,6 +6,14 @@ import 'package:ims_pos_system/models/product.dart';
 import 'package:ims_pos_system/screens/inventory/brand/brand_screen.dart';
 import 'package:ims_pos_system/screens/inventory/brand/create_brand_screen.dart';
 import 'package:ims_pos_system/screens/inventory/brand/edit_brand_screen.dart';
+import 'package:ims_pos_system/models/product_model.dart';
+import 'package:ims_pos_system/screens/inventory/model/model_screen.dart';
+import 'package:ims_pos_system/screens/inventory/model/create_model_screen.dart';
+import 'package:ims_pos_system/screens/inventory/model/edit_model_screen.dart';
+import 'package:ims_pos_system/models/quality.dart';
+import 'package:ims_pos_system/screens/inventory/quality/quality_screen.dart';
+import 'package:ims_pos_system/screens/inventory/quality/create_quality_screen.dart';
+import 'package:ims_pos_system/screens/inventory/quality/edit_quality_screen.dart';
 import 'package:ims_pos_system/screens/inventory/supplier/supplier_screen.dart';
 import 'package:ims_pos_system/screens/inventory/supplier/create_supplier_screen.dart';
 import 'package:ims_pos_system/screens/inventory/supplier/edit_supplier_screen.dart';
@@ -54,6 +62,12 @@ class AppRoutes {
   static const String brands = '/brands';
   static const String createBrand = '/brand/create';
   static const String editBrand = '/brand/edit';
+  static const String models = '/models';
+  static const String createModel = '/create-model';
+  static const String editModel = '/edit-model';
+  static const String qualities = '/qualities';
+  static const String createQuality = '/create-quality';
+  static const String editQuality = '/edit-quality';
   static const String suppliers = '/suppliers';
   static const String createSupplier = '/supplier/create';
   static const String editSupplier = '/supplier/edit';
@@ -107,6 +121,14 @@ class AppRoutes {
         return BrandScreen(onRouteSelected: callback);
       case createBrand:
         return CreateBrandScreen(onRouteSelected: callback);
+      case models:
+        return ModelScreen(onRouteSelected: callback);
+      case createModel:
+        return CreateModelScreen(onRouteSelected: callback);
+      case qualities:
+        return QualityScreen(onRouteSelected: callback);
+      case createQuality:
+        return CreateQualityScreen(onRouteSelected: callback);
       case suppliers:
         return SupplierScreen(onRouteSelected: callback);
       case createSupplier:
@@ -214,6 +236,34 @@ class AppRoutes {
       }
     }
 
+    // Parameterized: /model/edit/:id
+    if (route.startsWith('$editModel/')) {
+      final idStr = route.substring('$editModel/'.length);
+      final id = int.tryParse(idStr);
+      if (id != null) {
+        final model = args?['model'] as ProductModel?;
+        return EditModelScreen(
+          onRouteSelected: callback,
+          modelId: id,
+          initialModel: model,
+        );
+      }
+    }
+
+    // Parameterized: /quality/edit/:id
+    if (route.startsWith('$editQuality/')) {
+      final idStr = route.substring('$editQuality/'.length);
+      final id = int.tryParse(idStr);
+      if (id != null) {
+        final quality = args?['quality'] as Quality?;
+        return EditQualityScreen(
+          onRouteSelected: callback,
+          qualityId: id,
+          initialQuality: quality,
+        );
+      }
+    }
+
     // Parameterized: /supplier/edit/:id
     if (route.startsWith('$editSupplier/')) {
       final idStr = route.substring('$editSupplier/'.length);
@@ -277,6 +327,10 @@ class AppRoutes {
     createCategory: (context) => CreateCategoryScreen(onRouteSelected: (r) {}),
     brands: (context) => BrandScreen(onRouteSelected: (r) {}),
     createBrand: (context) => CreateBrandScreen(onRouteSelected: (r) {}),
+    models: (context) => ModelScreen(onRouteSelected: (r) {}),
+    createModel: (context) => CreateModelScreen(onRouteSelected: (r) {}),
+    qualities: (context) => QualityScreen(onRouteSelected: (r) {}),
+    createQuality: (context) => CreateQualityScreen(onRouteSelected: (r) {}),
     suppliers: (context) => SupplierScreen(onRouteSelected: (r) {}),
     createSupplier: (context) => CreateSupplierScreen(onRouteSelected: (r) {}),
     customers: (context) => CustomerScreen(onRouteSelected: (r) {}),

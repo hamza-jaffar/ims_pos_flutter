@@ -29,6 +29,11 @@ class _ProductScreenState extends State<ProductScreen> {
   List<Room> _rooms = [];
 
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _offset = 0;
+  final int _limit = 20;
+  
   final Set<int> _hoveredRows = {};
 
   final TextEditingController _searchController = TextEditingController();
@@ -42,39 +47,85 @@ class _ProductScreenState extends State<ProductScreen> {
   @override
   void initState() {
     super.initState();
-    _loadAllData();
-    _searchController.addListener(_applyFilters);
+    _loadInitialData();
   }
 
   @override
   void dispose() {
-    _searchController.removeListener(_applyFilters);
     _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadAllData() async {
+  Future<void> _loadInitialData() async {
     setState(() => _isLoading = true);
     try {
-      final products = await ProductService.instance.getAll();
       final categories = await CategoryService.instance.getAll();
       final brands = await BrandService.instance.getAll();
       final rooms = await RoomService.instance.getAll();
 
       if (mounted) {
         setState(() {
-          _products = products;
-          _filtered = products;
           _categories = categories;
           _brands = brands;
           _rooms = rooms;
-          _isLoading = false;
         });
-        _applyFilters();
+        await _loadProducts();
       }
     } catch (error) {
       if (mounted) {
         setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load initial data: $error'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _loadProducts({bool isLoadMore = false}) async {
+    if (!isLoadMore) {
+      setState(() {
+        _isLoading = true;
+        _offset = 0;
+        _hasMore = true;
+      });
+    } else {
+      setState(() => _isLoadingMore = true);
+    }
+
+    try {
+      final String stockStatusFilter = _filterStockStatus == 'All' ? '' : _filterStockStatus;
+      final products = await ProductService.instance.getPaginated(
+        limit: _limit,
+        offset: _offset,
+        searchQuery: _searchController.text,
+        categoryId: _filterCategoryId,
+        brandId: _filterBrandId,
+        roomId: _filterRoomId,
+        stockStatus: stockStatusFilter.isNotEmpty ? stockStatusFilter : null,
+      );
+
+      if (mounted) {
+        setState(() {
+          if (isLoadMore) {
+            _products.addAll(products);
+          } else {
+            _products = products;
+          }
+          _filtered = _products;
+          _hasMore = products.length == _limit;
+          _isLoading = false;
+          _isLoadingMore = false;
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isLoadingMore = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to load products: $error'),
@@ -86,48 +137,7 @@ class _ProductScreenState extends State<ProductScreen> {
   }
 
   void _applyFilters() {
-    final query = _searchController.text.trim().toLowerCase();
-
-    setState(() {
-      _filtered = _products.where((p) {
-        // 1. Search Query
-        final matchesQuery =
-            query.isEmpty ||
-            p.name.toLowerCase().contains(query) ||
-            p.code.toLowerCase().contains(query) ||
-            (p.categoryName?.toLowerCase().contains(query) ?? false) ||
-            (p.brandName?.toLowerCase().contains(query) ?? false) ||
-            (p.supplierName?.toLowerCase().contains(query) ?? false) ||
-            (p.roomName?.toLowerCase().contains(query) ?? false);
-
-        // 2. Category Filter
-        final matchesCategory =
-            _filterCategoryId == null || p.categoryId == _filterCategoryId;
-
-        // 3. Brand Filter
-        final matchesBrand =
-            _filterBrandId == null || p.brandId == _filterBrandId;
-
-        // 4. Room Filter
-        final matchesRoom = _filterRoomId == null || p.roomId == _filterRoomId;
-
-        // 5. Stock Status Filter
-        bool matchesStock = true;
-        if (_filterStockStatus == 'In Stock') {
-          matchesStock = p.quantity > p.minStockQuantity;
-        } else if (_filterStockStatus == 'Low Stock') {
-          matchesStock = p.quantity <= p.minStockQuantity && p.quantity > 0;
-        } else if (_filterStockStatus == 'Out of Stock') {
-          matchesStock = p.quantity == 0;
-        }
-
-        return matchesQuery &&
-            matchesCategory &&
-            matchesBrand &&
-            matchesRoom &&
-            matchesStock;
-      }).toList();
-    });
+    _loadProducts();
   }
 
   Future<void> _deleteProduct(Product product) async {
@@ -175,7 +185,7 @@ class _ProductScreenState extends State<ProductScreen> {
             backgroundColor: AppColors.success,
           ),
         );
-        _loadAllData();
+        _loadProducts();
       }
     }
   }
@@ -331,7 +341,10 @@ class _ProductScreenState extends State<ProductScreen> {
                           size: 18,
                           color: AppColors.textSecondary,
                         ),
-                        onPressed: () => _searchController.clear(),
+                        onPressed: () {
+                          _searchController.clear();
+                          _applyFilters();
+                        },
                       )
                     : null,
                 contentPadding: const EdgeInsets.symmetric(
@@ -356,6 +369,7 @@ class _ProductScreenState extends State<ProductScreen> {
                 filled: true,
                 fillColor: AppColors.background.withAlpha(120),
               ),
+              onChanged: (_) => _applyFilters(),
             ),
           ),
           const SizedBox(height: 12),
@@ -532,18 +546,20 @@ class _ProductScreenState extends State<ProductScreen> {
           ),
           child: Row(
             children: [
-              Expanded(flex: 3, child: _headerCell('Product')),
-              Expanded(flex: 2, child: _headerCell('Category/Brand')),
-              Expanded(flex: 2, child: _headerCell('Stock Qty')),
-              Expanded(flex: 2, child: _headerCell('Pricing')),
-              Expanded(flex: 1, child: _headerCell('Status')),
+              Expanded(flex: 1, child: _headerCell('ID')),
+              Expanded(flex: 3, child: _headerCell('Name')),
+              Expanded(flex: 2, child: _headerCell('Code')),
+              Expanded(flex: 1, child: _headerCell('Quality')),
+              Expanded(flex: 2, child: _headerCell('Cost Price')),
+              Expanded(flex: 2, child: _headerCell('Selling Price')),
+              Expanded(flex: 2, child: _headerCell('Supplier')),
               SizedBox(width: 80, child: _headerCell('Actions')),
             ],
           ),
         ),
         // Rows
         RefreshIndicator(
-          onRefresh: _loadAllData,
+          onRefresh: () => _loadProducts(),
           child: ListView.separated(
             physics: const NeverScrollableScrollPhysics(),
             shrinkWrap: true,
@@ -553,6 +569,28 @@ class _ProductScreenState extends State<ProductScreen> {
             itemBuilder: (_, index) => _buildRow(_filtered[index], index),
           ),
         ),
+        if (_hasMore)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: _isLoadingMore
+                ? const Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  )
+                : TextButton(
+                    onPressed: () {
+                      _offset += _limit;
+                      _loadProducts(isLoadMore: true);
+                    },
+                    child: const Text('Load More'),
+                  ),
+          ),
       ],
     );
   }
@@ -585,89 +623,75 @@ class _ProductScreenState extends State<ProductScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           color: isHovered ? AppColors.background.withAlpha(40) : Colors.white,
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Product Name
+              // ID
+              Expanded(
+                flex: 1,
+                child: Text(
+                  product.id?.toString() ?? '—',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+              ),
+              // Name
               Expanded(
                 flex: 3,
                 child: Text(
                   product.name,
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 12, // Reduced font size to fit full text
                     fontWeight: FontWeight.w600,
                     color: AppColors.textMain,
                   ),
-                  overflow: TextOverflow.ellipsis,
+                  softWrap: true,
+                  overflow: TextOverflow.visible,
                 ),
               ),
-              // Category/Brand/Room
+              // Code
               Expanded(
                 flex: 2,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product.categoryName ?? '—',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: AppColors.textMain.withAlpha(220),
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      product.brandName ?? '—',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      product.roomName ?? '—',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.textSecondary,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                child: Text(
+                  product.code,
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                 ),
               ),
-              // Stock quantity (Highlight low stock in orange, out of stock in red)
-              Expanded(flex: 2, child: _buildStockQuantityCell(product)),
-              // Pricing
-              Expanded(flex: 2, child: _buildPriceCell(product)),
-              // Status
+              // Quality
               Expanded(
                 flex: 1,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: product.isActive
-                        ? AppColors.successLight
-                        : AppColors.border,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    product.isActive ? 'Active' : 'Inactive',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: product.isActive
-                          ? AppColors.success
-                          : AppColors.textSecondary,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
+                child: Text(
+                  product.qualityName ?? '—',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+              ),
+              // Cost Price
+              Expanded(
+                flex: 2,
+                child: Text(
+                  '${PlatformSettingsService.instance.settings.currencySymbol}${product.purchasePrice.toStringAsFixed(2)}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                ),
+              ),
+              // Selling Price
+              Expanded(
+                flex: 2,
+                child: Text(
+                  '${PlatformSettingsService.instance.settings.currencySymbol}${product.sellingPrice.toStringAsFixed(2)}',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textMain, fontWeight: FontWeight.bold),
+                ),
+              ),
+              // Supplier
+              Expanded(
+                flex: 2,
+                child: Text(
+                  product.supplierName ?? '—',
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  softWrap: true,
+                  overflow: TextOverflow.visible,
                 ),
               ),
               // Actions
               SizedBox(
-                width: 92,
+                width: 80,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -822,16 +846,42 @@ class _ProductScreenState extends State<ProductScreen> {
   }
 
   Widget _buildCardList() {
-    return RefreshIndicator(
-      onRefresh: _loadAllData,
-      child: ListView.separated(
-        physics: const NeverScrollableScrollPhysics(),
-        shrinkWrap: true,
-        itemCount: _filtered.length,
-        separatorBuilder: (_, _) =>
-            const Divider(height: 1, color: AppColors.border),
-        itemBuilder: (_, index) => _buildCardItem(_filtered[index]),
-      ),
+    return Column(
+      children: [
+        RefreshIndicator(
+          onRefresh: () => _loadProducts(),
+          child: ListView.separated(
+            physics: const NeverScrollableScrollPhysics(),
+            shrinkWrap: true,
+            itemCount: _filtered.length,
+            separatorBuilder: (_, _) =>
+                const Divider(height: 1, color: AppColors.border),
+            itemBuilder: (_, index) => _buildCardItem(_filtered[index]),
+          ),
+        ),
+        if (_hasMore)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: _isLoadingMore
+                ? const Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  )
+                : TextButton(
+                    onPressed: () {
+                      _offset += _limit;
+                      _loadProducts(isLoadMore: true);
+                    },
+                    child: const Text('Load More'),
+                  ),
+          ),
+      ],
     );
   }
 

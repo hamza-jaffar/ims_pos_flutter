@@ -14,6 +14,10 @@ class ProductTable {
       category_id INTEGER,
       supplier_id INTEGER,
       room_id INTEGER,
+      model_id INTEGER,
+      quality_id INTEGER,
+      quality TEXT,
+      location TEXT,
       quantity INTEGER NOT NULL DEFAULT 0,
       min_stock_quantity INTEGER NOT NULL DEFAULT 5,
       purchase_price REAL NOT NULL DEFAULT 0.0,
@@ -45,6 +49,10 @@ class ProductTable {
         category_id INTEGER,
         supplier_id INTEGER,
         room_id INTEGER,
+        model_id INTEGER,
+        quality_id INTEGER,
+        quality TEXT,
+        location TEXT,
         quantity INTEGER NOT NULL DEFAULT 0,
         min_stock_quantity INTEGER NOT NULL DEFAULT 5,
         purchase_price REAL NOT NULL DEFAULT 0.0,
@@ -77,6 +85,36 @@ class ProductTable {
     final columns = info.map((c) => c['name'] as String).toList();
     if (!columns.contains('room_id')) {
       await db.execute('ALTER TABLE $tableName ADD COLUMN room_id INTEGER');
+    }
+  }
+
+  /// Runs migration for v14 → v15: adds model_id column if missing.
+  static Future<void> migrateV15(Database db) async {
+    final info = await db.rawQuery("PRAGMA table_info($tableName)");
+    final columns = info.map((c) => c['name'] as String).toList();
+    if (!columns.contains('model_id')) {
+      await db.execute('ALTER TABLE $tableName ADD COLUMN model_id INTEGER');
+    }
+  }
+
+  /// Runs migration for v15 → v16: adds quality and location columns if missing.
+  static Future<void> migrateV16(Database db) async {
+    final info = await db.rawQuery("PRAGMA table_info($tableName)");
+    final columns = info.map((c) => c['name'] as String).toList();
+    if (!columns.contains('quality')) {
+      await db.execute('ALTER TABLE $tableName ADD COLUMN quality TEXT');
+    }
+    if (!columns.contains('location')) {
+      await db.execute('ALTER TABLE $tableName ADD COLUMN location TEXT');
+    }
+  }
+
+  /// Runs migration for v16 → v17: adds quality_id column if missing.
+  static Future<void> migrateV17(Database db) async {
+    final info = await db.rawQuery("PRAGMA table_info($tableName)");
+    final columns = info.map((c) => c['name'] as String).toList();
+    if (!columns.contains('quality_id')) {
+      await db.execute('ALTER TABLE $tableName ADD COLUMN quality_id INTEGER');
     }
   }
 }

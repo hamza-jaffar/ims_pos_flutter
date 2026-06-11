@@ -1,68 +1,73 @@
 import 'package:flutter/material.dart';
 import 'package:ims_pos_system/app_routes.dart';
 import 'package:ims_pos_system/const/app_colors.dart';
-import 'package:ims_pos_system/models/category.dart';
-import 'package:ims_pos_system/services/category_service.dart';
+import 'package:ims_pos_system/models/quality.dart';
+import 'package:ims_pos_system/services/quality_service.dart';
 
-class EditCategoryScreen extends StatefulWidget {
+class EditQualityScreen extends StatefulWidget {
   final ValueChanged<String> onRouteSelected;
-  final int categoryId;
-  final Category? initialCategory;
+  final int qualityId;
+  final Quality? initialQuality;
 
-  const EditCategoryScreen({
+  const EditQualityScreen({
     super.key,
     required this.onRouteSelected,
-    required this.categoryId,
-    this.initialCategory,
+    required this.qualityId,
+    this.initialQuality,
   });
 
   @override
-  State<EditCategoryScreen> createState() => _EditCategoryScreenState();
+  State<EditQualityScreen> createState() => _EditQualityScreenState();
 }
 
-class _EditCategoryScreenState extends State<EditCategoryScreen> {
+class _EditQualityScreenState extends State<EditQualityScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   bool _isActive = true;
   bool _isSaving = false;
   bool _isLoading = true;
-  Category? _category;
+  Quality? _quality;
 
   @override
   void initState() {
     super.initState();
-    if (widget.initialCategory != null) {
-      _populateFields(widget.initialCategory!);
-      _isLoading = false;
-    } else {
-      _loadCategory();
-    }
+    _loadData();
   }
 
-  Future<void> _loadCategory() async {
-    final cat = await CategoryService.instance.getById(widget.categoryId);
-    if (mounted) {
-      if (cat != null) {
-        _populateFields(cat);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Category not found.'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
-        widget.onRouteSelected(AppRoutes.categories);
+  Future<void> _loadData() async {
+    try {
+      Quality? quality = widget.initialQuality;
+      quality ??= await QualityService.instance.getById(widget.qualityId);
+
+      if (mounted) {
+        if (quality != null) {
+          _populateFields(quality);
+          setState(() {
+            _isLoading = false;
+          });
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Quality not found.'),
+              backgroundColor: AppColors.danger,
+            ),
+          );
+          widget.onRouteSelected(AppRoutes.qualities);
+        }
       }
-      setState(() => _isLoading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
-  void _populateFields(Category cat) {
-    _category = cat;
-    _nameController.text = cat.name;
-    _descriptionController.text = cat.description ?? '';
-    _isActive = cat.isActive;
+  void _populateFields(Quality quality) {
+    _quality = quality;
+    _nameController.text = quality.name;
+    _descriptionController.text = quality.description ?? '';
+    _isActive = quality.isActive;
   }
 
   @override
@@ -74,16 +79,16 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
 
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_category == null) return;
+    if (_quality == null) return;
 
-    final nameExists = await CategoryService.instance.nameExists(
+    final nameExists = await QualityService.instance.nameExists(
       _nameController.text.trim(),
-      excludeId: _category!.id,
+      excludeId: _quality!.id,
     );
     if (nameExists && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('A category with this name already exists.'),
+          content: Text('A quality with this name already exists.'),
           backgroundColor: AppColors.danger,
         ),
       );
@@ -92,36 +97,36 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
 
     setState(() => _isSaving = true);
 
-    final updated = Category(
-      id: _category!.id,
+    final updated = Quality(
+      id: _quality!.id,
       name: _nameController.text.trim(),
-      code: _category!.code,
+      code: _quality!.code,
       description: _descriptionController.text.trim().isEmpty
           ? null
           : _descriptionController.text.trim(),
       isActive: _isActive,
-      createdAt: _category!.createdAt,
+      createdAt: _quality!.createdAt,
+      updatedAt: DateTime.now(),
     );
 
     try {
-      await CategoryService.instance.update(updated);
-
+      await QualityService.instance.update(updated);
       if (mounted) {
         setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Category updated successfully!'),
+            content: Text('Quality updated successfully!'),
             backgroundColor: AppColors.success,
           ),
         );
-        widget.onRouteSelected(AppRoutes.categories);
+        widget.onRouteSelected(AppRoutes.qualities);
       }
     } catch (error) {
       if (mounted) {
         setState(() => _isSaving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update category: $error'),
+            content: Text('Failed to update quality: $error'),
             backgroundColor: AppColors.danger,
           ),
         );
@@ -142,14 +147,14 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
           Row(
             children: [
               TextButton.icon(
-                onPressed: () => widget.onRouteSelected('/categories'),
+                onPressed: () => widget.onRouteSelected(AppRoutes.qualities),
                 icon: const Icon(
                   Icons.arrow_back,
                   size: 18,
                   color: AppColors.primary,
                 ),
                 label: const Text(
-                  'Back to Categories',
+                  'Back to Qualities',
                   style: TextStyle(
                     color: AppColors.primary,
                     fontWeight: FontWeight.w600,
@@ -160,7 +165,7 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Edit Category',
+            'Edit Quality',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.bold,
@@ -169,7 +174,7 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
           ),
           const SizedBox(height: 4),
           Text(
-            'Update the details for "${_category?.name ?? ''}".',
+            'Update quality details and status.',
             style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
           ),
           const SizedBox(height: 24),
@@ -195,9 +200,9 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                   LayoutBuilder(
                     builder: (context, constraints) {
                       return _buildField(
-                        'Category Name *',
+                        'Quality Name *',
                         _nameController,
-                        'e.g. Electronics',
+                        'e.g. Grade A',
                         required: true,
                       );
                     },
@@ -206,7 +211,7 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                   _buildTextArea(
                     'Description',
                     _descriptionController,
-                    'Enter category description...',
+                    'Enter quality description...',
                   ),
                   const SizedBox(height: 20),
                   Row(
@@ -249,8 +254,9 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                             OutlinedButton(
                               onPressed: _isSaving
                                   ? null
-                                  : () =>
-                                        widget.onRouteSelected(AppRoutes.categories),
+                                  : () => widget.onRouteSelected(
+                                      AppRoutes.qualities,
+                                    ),
                               style: OutlinedButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 16,
@@ -294,71 +300,74 @@ class _EditCategoryScreenState extends State<EditCategoryScreen> {
                                       ),
                                     )
                                   : const Text(
-                                      'Update Category',
-                                      style: TextStyle(fontWeight: FontWeight.w600),
-                                    ),
-                            ),
-                          ],
-                        );
-                      } else {
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            OutlinedButton(
-                              onPressed: _isSaving
-                                  ? null
-                                  : () =>
-                                        widget.onRouteSelected(AppRoutes.categories),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 16,
-                                ),
-                                side: const BorderSide(color: AppColors.border),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              child: const Text(
-                                'Cancel',
-                                style: TextStyle(
-                                  color: AppColors.textSecondary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            ElevatedButton(
-                              onPressed: _isSaving ? null : _handleSave,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 16,
-                                ),
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              child: _isSaving
-                                  ? const SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
+                                      'Update Quality',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
                                       ),
-                                    )
-                                  : const Text(
-                                      'Update Category',
-                                      style: TextStyle(fontWeight: FontWeight.w600),
                                     ),
                             ),
                           ],
                         );
                       }
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          OutlinedButton(
+                            onPressed: _isSaving
+                                ? null
+                                : () =>
+                                      widget.onRouteSelected(AppRoutes.qualities),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 16,
+                              ),
+                              side: const BorderSide(color: AppColors.border),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text(
+                              'Cancel',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          ElevatedButton(
+                            onPressed: _isSaving ? null : _handleSave,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 16,
+                              ),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: _isSaving
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Update Quality',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      );
                     },
                   ),
                 ],

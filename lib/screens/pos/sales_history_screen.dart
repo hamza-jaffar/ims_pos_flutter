@@ -23,6 +23,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
   DateTime? _fromDate;
   DateTime? _toDate;
   final TextEditingController _searchCtrl = TextEditingController();
+  int _displayLimit = 20;
 
   @override
   void initState() {
@@ -85,7 +86,10 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
       return typeMatch && dateMatch && searchMatch;
     }).toList();
 
-    setState(() => _filtered = list);
+    setState(() {
+      _filtered = list;
+      _displayLimit = 20; // reset on filter
+    });
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
@@ -465,7 +469,7 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                                   shrinkWrap: true,
                                   physics:
                                       const NeverScrollableScrollPhysics(),
-                                  itemCount: _filtered.length,
+                                  itemCount: _filtered.length > _displayLimit ? _displayLimit : _filtered.length,
                                   separatorBuilder: (_, _) => const Divider(
                                       height: 1, color: AppColors.border),
                                   itemBuilder: (ctx, i) {
@@ -651,11 +655,25 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
                                     );
                                   },
                                 ),
+                              if (_filtered.length > _displayLimit)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  child: Center(
+                                    child: TextButton(
+                                      onPressed: () {
+                                        setState(() {
+                                          _displayLimit += 20;
+                                        });
+                                      },
+                                      child: const Text('Load More'),
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
-                ),
-              ],
-            ),
+                  ),
+                ],
+              ),
           ),
         ),
       ],

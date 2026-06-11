@@ -19,6 +19,7 @@ class PlatformSettingsService {
     invoicePrefix: 'INV-',
     timezone: 'UTC',
     dateFormat: 'dd/MM/yyyy',
+    continueSellingWhenStockEmpty: false,
   );
 
   /// Synchronous access to settings

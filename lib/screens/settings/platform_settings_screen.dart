@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:ims_pos_system/const/app_colors.dart';
 import 'package:ims_pos_system/services/platform_settings_service.dart';
-import 'package:ims_pos_system/screens/settings/qa_testing_tab.dart';
+
 
 // ────────────────────────────────────────────────────────────
 //  Timezone & date-format options
@@ -57,7 +57,7 @@ class _PlatformSettingsScreenState extends State<PlatformSettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -149,11 +149,6 @@ class _PlatformSettingsScreenState extends State<PlatformSettingsScreen>
                 text: 'Contact',
                 iconMargin: EdgeInsets.only(bottom: 4),
               ),
-              Tab(
-                icon: Icon(Icons.bug_report_outlined, size: 18),
-                text: 'QA Tools',
-                iconMargin: EdgeInsets.only(bottom: 4),
-              ),
             ],
           ),
         ),
@@ -185,7 +180,6 @@ class _PlatformSettingsScreenState extends State<PlatformSettingsScreen>
               _GeneralTab(onRouteSelected: widget.onRouteSelected),
               _CurrencyTaxTab(onRouteSelected: widget.onRouteSelected),
               _ContactTab(onRouteSelected: widget.onRouteSelected),
-              const QATestingTab(),
             ],
           ),
         ),
@@ -212,6 +206,7 @@ class _GeneralTabState extends State<_GeneralTab> {
   String _timezone = 'UTC';
   String _dateFormat = 'dd/MM/yyyy';
   String? _logoPath;
+  bool _continueSelling = false;
   bool _isSaving = false;
 
   @override
@@ -223,6 +218,7 @@ class _GeneralTabState extends State<_GeneralTab> {
     _timezone = s.timezone;
     _dateFormat = s.dateFormat;
     _logoPath = s.logoPath;
+    _continueSelling = s.continueSellingWhenStockEmpty;
   }
 
   @override
@@ -241,6 +237,7 @@ class _GeneralTabState extends State<_GeneralTab> {
       timezone: _timezone,
       dateFormat: _dateFormat,
       logoPath: _logoPath,
+      continueSellingWhenStockEmpty: _continueSelling,
     );
     try {
       await PlatformSettingsService.instance.updateSettings(updated);
@@ -424,6 +421,27 @@ class _GeneralTabState extends State<_GeneralTab> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 28),
+            _sectionTitle('Sales Rules'),
+            const SizedBox(height: 16),
+            SwitchListTile(
+              title: const Text(
+                'Continue Selling When Stock is Empty',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textMain,
+                ),
+              ),
+              subtitle: const Text(
+                'Allow products to be sold even if their available stock quantity is 0 or negative.',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+              value: _continueSelling,
+              onChanged: (v) => setState(() => _continueSelling = v),
+              activeColor: AppColors.primary,
+              contentPadding: EdgeInsets.zero,
             ),
             const SizedBox(height: 32),
             _saveButton(_isSaving, _save),

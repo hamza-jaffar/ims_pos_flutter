@@ -7,6 +7,9 @@ class Product {
   final int? categoryId;
   final int? supplierId;
   final int? roomId;
+  final int? modelId;
+  final int? qualityId;
+  final String? location;
   final int quantity;
   final int minStockQuantity;
   final double purchasePrice;
@@ -22,6 +25,8 @@ class Product {
   final String? categoryName;
   final String? supplierName;
   final String? roomName;
+  final String? modelName;
+  final String? qualityName;
 
   Product({
     this.id,
@@ -32,6 +37,9 @@ class Product {
     this.categoryId,
     this.supplierId,
     this.roomId,
+    this.modelId,
+    this.qualityId,
+    this.location,
     this.quantity = 0,
     this.minStockQuantity = 5,
     this.purchasePrice = 0.0,
@@ -45,6 +53,8 @@ class Product {
     this.categoryName,
     this.supplierName,
     this.roomName,
+    this.modelName,
+    this.qualityName,
   });
 
   bool get isLowStock => quantity <= minStockQuantity;
@@ -64,6 +74,10 @@ class Product {
       'category_id': categoryId,
       'supplier_id': supplierId,
       'room_id': roomId,
+      'model_id': modelId,
+      'quality_id': qualityId,
+      'quality': qualityName, // Note: keeping quality name column as well if user wants, but typically we map id. Let's map id and name. Wait, the DB column was just `quality`. We added `quality_id`. Let's just remove `quality` from DB update. Wait, the DB has `quality` TEXT from V16.
+      'location': location,
       'quantity': quantity,
       'min_stock_quantity': minStockQuantity,
       'purchase_price': purchasePrice,
@@ -85,6 +99,9 @@ class Product {
       brandId: map['brand_id'] as int?,
       categoryId: map['category_id'] as int?,
       supplierId: map['supplier_id'] as int?,
+      modelId: map['model_id'] as int?,
+      qualityId: map['quality_id'] as int?,
+      location: map['location'] as String?,
       quantity: map['quantity'] as int,
       minStockQuantity: map['min_stock_quantity'] as int,
       purchasePrice: (map['purchase_price'] as num).toDouble(),
@@ -105,6 +122,8 @@ class Product {
       categoryName: map['category_name'] as String?,
       supplierName: map['supplier_name'] as String?,
       roomName: map['room_name'] as String?,
+      modelName: map['model_name'] as String?,
+      qualityName: map['quality_name'] as String? ?? map['quality'] as String?,
     );
   }
 
@@ -117,6 +136,9 @@ class Product {
     int? categoryId,
     int? supplierId,
     int? roomId,
+    int? modelId,
+    int? qualityId,
+    String? location,
     int? quantity,
     int? minStockQuantity,
     double? purchasePrice,
@@ -130,6 +152,8 @@ class Product {
     String? categoryName,
     String? supplierName,
     String? roomName,
+    String? modelName,
+    String? qualityName,
   }) {
     return Product(
       id: id ?? this.id,
@@ -140,6 +164,9 @@ class Product {
       categoryId: categoryId ?? this.categoryId,
       supplierId: supplierId ?? this.supplierId,
       roomId: roomId ?? this.roomId,
+      modelId: modelId ?? this.modelId,
+      qualityId: qualityId ?? this.qualityId,
+      location: location ?? this.location,
       quantity: quantity ?? this.quantity,
       minStockQuantity: minStockQuantity ?? this.minStockQuantity,
       purchasePrice: purchasePrice ?? this.purchasePrice,
@@ -153,6 +180,8 @@ class Product {
       categoryName: categoryName ?? this.categoryName,
       supplierName: supplierName ?? this.supplierName,
       roomName: roomName ?? this.roomName,
+      modelName: modelName ?? this.modelName,
+      qualityName: qualityName ?? this.qualityName,
     );
   }
 

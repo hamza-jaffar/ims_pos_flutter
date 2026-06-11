@@ -18,7 +18,8 @@ class PlatformSettingsTable {
       tax_name TEXT NOT NULL DEFAULT 'VAT',
       invoice_prefix TEXT NOT NULL DEFAULT 'INV-',
       timezone TEXT NOT NULL DEFAULT 'UTC',
-      date_format TEXT NOT NULL DEFAULT 'dd/MM/yyyy'
+      date_format TEXT NOT NULL DEFAULT 'dd/MM/yyyy',
+      continue_selling_when_stock_empty INTEGER NOT NULL DEFAULT 0
     )
   ''';
 
@@ -42,7 +43,8 @@ class PlatformSettingsTable {
         tax_name TEXT NOT NULL DEFAULT 'VAT',
         invoice_prefix TEXT NOT NULL DEFAULT 'INV-',
         timezone TEXT NOT NULL DEFAULT 'UTC',
-        date_format TEXT NOT NULL DEFAULT 'dd/MM/yyyy'
+        date_format TEXT NOT NULL DEFAULT 'dd/MM/yyyy',
+        continue_selling_when_stock_empty INTEGER NOT NULL DEFAULT 0
       )
     ''');
 
@@ -73,6 +75,18 @@ class PlatformSettingsTable {
     }
 
     await _seedDefaultSettings(db);
+  }
+
+  /// Adds new columns for databases upgrading to v18
+  static Future<void> migrateV18(Database db) async {
+    await ensureTable(db);
+    try {
+      await db.execute(
+        "ALTER TABLE $tableName ADD COLUMN continue_selling_when_stock_empty INTEGER NOT NULL DEFAULT 0",
+      );
+    } catch (_) {
+      // Column may already exist
+    }
   }
 
   static Future<void> _seedDefaultSettings(Database db) async {

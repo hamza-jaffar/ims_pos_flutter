@@ -45,5 +45,21 @@ class SaleItemTable {
         "ALTER TABLE $tableName ADD COLUMN cost_price REAL NOT NULL DEFAULT 0.0",
       );
     }
+    final hasReturn = columns.any((c) => c['name'] == 'return_qty');
+    if (!hasReturn) {
+      await db.execute(
+        "ALTER TABLE $tableName ADD COLUMN return_qty INTEGER NOT NULL DEFAULT 0",
+      );
+    }
+  }
+
+  static Future<void> migrateV19(Database db) async {
+    final columns = await db.rawQuery("PRAGMA table_info('$tableName')");
+    final hasReturn = columns.any((c) => c['name'] == 'return_qty');
+    if (!hasReturn) {
+      await db.execute(
+        "ALTER TABLE $tableName ADD COLUMN return_qty INTEGER NOT NULL DEFAULT 0",
+      );
+    }
   }
 }

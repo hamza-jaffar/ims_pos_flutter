@@ -92,12 +92,14 @@ class _EditBrandScreenState extends State<EditBrandScreen> {
 
     setState(() => _isSaving = true);
 
-    final updated = _brand!.copyWith(
+    final updated = Brand(
+      id: _brand!.id,
       name: _nameController.text.trim(),
       description: _descriptionController.text.trim().isEmpty
           ? null
           : _descriptionController.text.trim(),
       isActive: _isActive,
+      createdAt: _brand!.createdAt,
     );
 
     try {

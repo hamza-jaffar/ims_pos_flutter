@@ -8,6 +8,7 @@ import 'package:ims_pos_system/services/platform_settings_service.dart';
 import 'package:ims_pos_system/services/purchase_service.dart';
 import 'package:ims_pos_system/services/sale_service.dart';
 import 'package:ims_pos_system/services/pdf_export_helper.dart';
+import 'package:ims_pos_system/core/database/database_helper.dart';
 import 'package:ims_pos_system/services/excel_export_helper.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -21,9 +22,9 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen>
     with SingleTickerProviderStateMixin {
   bool _isLoading = true;
+  bool _showNumbers = false;
 
-  List<Purchase> _allSales = [];
-  List<Purchase> _allPurchases = [];
+
 
   double _totalRevenue = 0;
   double _totalSpend = 0;
@@ -33,39 +34,17 @@ class _DashboardScreenState extends State<DashboardScreen>
   int _totalPurchasesCount = 0;
 
   List<Map<String, dynamic>> _monthlyData = [];
-  late AnimationController _animController;
-  late Animation<double> _fadeAnim;
 
   @override
   void initState() {
     super.initState();
-    _animController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-    _fadeAnim = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
     _loadDashboardData();
-  }
-
-  @override
-  void dispose() {
-    _animController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadDashboardData() async {
     setState(() => _isLoading = true);
     try {
-      final salesData = await SaleService.instance.getAllSalesHistory(
-        filterType: 'All',
-      );
-      final purchaseData = await PurchaseService.instance.getAllByType(
-        'Purchase',
-      );
-      final returnData = await PurchaseService.instance.getAllByType('Return');
-
-      _allSales = salesData;
-      _allPurchases = [...purchaseData, ...returnData];
+      final db = await DatabaseHelper.instance.database;
 
       _totalRevenue = 0;
       _totalSpend = 0;
@@ -73,6 +52,24 @@ class _DashboardScreenState extends State<DashboardScreen>
       _totalReturns = 0;
       _totalSalesCount = 0;
       _totalPurchasesCount = 0;
+
+      final legacySales = await db.rawQuery("SELECT SUM(grand_total) as total, COUNT(*) as cnt FROM purchases WHERE type = 'Sale'");
+      final newSales = await db.rawQuery("SELECT SUM(grand_total) as total, COUNT(*) as cnt FROM sales WHERE type = 'Sale'");
+      _totalRevenue = ((legacySales.first['total'] as num?)?.toDouble() ?? 0) + ((newSales.first['total'] as num?)?.toDouble() ?? 0);
+      _totalSalesCount = ((legacySales.first['cnt'] as num?)?.toInt() ?? 0) + ((newSales.first['cnt'] as num?)?.toInt() ?? 0);
+
+      final spendData = await db.rawQuery("SELECT SUM(grand_total) as total, COUNT(*) as cnt FROM purchases WHERE type = 'Purchase'");
+      _totalSpend = (spendData.first['total'] as num?)?.toDouble() ?? 0;
+      _totalPurchasesCount = (spendData.first['cnt'] as num?)?.toInt() ?? 0;
+
+      final ret1 = await db.rawQuery("SELECT SUM(grand_total) as total FROM purchases WHERE type IN ('Return', 'SaleReturn')");
+      final ret2 = await db.rawQuery("SELECT SUM(grand_total) as total FROM sales WHERE type = 'SaleReturn'");
+      _totalReturns = ((ret1.first['total'] as num?)?.toDouble() ?? 0) + ((ret2.first['total'] as num?)?.toDouble() ?? 0);
+
+      final exactCost = await db.rawQuery("SELECT SUM(cost_price * quantity) as total FROM sale_items");
+      double totalCost = (exactCost.first['total'] as num?)?.toDouble() ?? 0;
+      double legacyCost = ((legacySales.first['total'] as num?)?.toDouble() ?? 0) * 0.7;
+      _totalProfit = _totalRevenue - (totalCost + legacyCost);
 
       final now = DateTime.now();
       final Map<String, Map<String, double>> monthlyMap = {};
@@ -82,57 +79,52 @@ class _DashboardScreenState extends State<DashboardScreen>
         monthlyMap[key] = {'sales': 0.0, 'spend': 0.0, 'profit': 0.0};
       }
 
-      for (var sale in _allSales) {
-        if (sale.type == 'Sale') {
-          _totalRevenue += sale.grandTotal;
-          _totalSalesCount++;
-          double cost = 0;
-          for (var item in sale.items) {
-            cost += item.costPrice * item.quantity;
-          }
-          final profit = sale.grandTotal - cost;
-          _totalProfit += profit;
+      final sixMonthsAgo = DateTime(now.year, now.month - 5, 1).toIso8601String();
+      
+      final recentSales = await db.rawQuery("SELECT id, purchase_date, grand_total FROM sales WHERE type = 'Sale' AND purchase_date >= ?", [sixMonthsAgo]);
+      final recentLegacySales = await db.rawQuery("SELECT id, purchase_date, grand_total FROM purchases WHERE type = 'Sale' AND purchase_date >= ?", [sixMonthsAgo]);
+      
+      final recentCosts = await db.rawQuery("SELECT sale_id, SUM(cost_price * quantity) as total_cost FROM sale_items GROUP BY sale_id");
+      final Map<int, double> saleCosts = { for (var row in recentCosts) row['sale_id'] as int: (row['total_cost'] as num).toDouble() };
 
-          final key = DateFormat('MMM yy').format(sale.purchaseDate);
-          if (monthlyMap.containsKey(key)) {
-            monthlyMap[key]!['sales'] =
-                (monthlyMap[key]!['sales'] ?? 0.0) + sale.grandTotal;
-            monthlyMap[key]!['profit'] =
-                (monthlyMap[key]!['profit'] ?? 0.0) + profit;
-          }
-        } else if (sale.type == 'SaleReturn') {
-          _totalReturns += sale.grandTotal;
+      for (var row in recentSales) {
+        final date = DateTime.parse(row['purchase_date'] as String);
+        final key = DateFormat('MMM yy').format(date);
+        if (monthlyMap.containsKey(key)) {
+          final revenue = (row['grand_total'] as num).toDouble();
+          monthlyMap[key]!['sales'] = (monthlyMap[key]!['sales'] ?? 0) + revenue;
+          final cost = saleCosts[row['id'] as int] ?? (revenue * 0.7);
+          monthlyMap[key]!['profit'] = (monthlyMap[key]!['profit'] ?? 0) + (revenue - cost);
         }
       }
 
-      for (var pur in _allPurchases) {
-        if (pur.type == 'Purchase') {
-          _totalSpend += pur.grandTotal;
-          _totalPurchasesCount++;
-          final key = DateFormat('MMM yy').format(pur.purchaseDate);
-          if (monthlyMap.containsKey(key)) {
-            monthlyMap[key]!['spend'] =
-                (monthlyMap[key]!['spend'] ?? 0.0) + pur.grandTotal;
-          }
-        } else if (pur.type == 'Return') {
-          _totalReturns += pur.grandTotal;
+      for (var row in recentLegacySales) {
+        final date = DateTime.parse(row['purchase_date'] as String);
+        final key = DateFormat('MMM yy').format(date);
+        if (monthlyMap.containsKey(key)) {
+          final revenue = (row['grand_total'] as num).toDouble();
+          monthlyMap[key]!['sales'] = (monthlyMap[key]!['sales'] ?? 0) + revenue;
+          monthlyMap[key]!['profit'] = (monthlyMap[key]!['profit'] ?? 0) + (revenue * 0.3);
+        }
+      }
+
+      final recentSpend = await db.rawQuery("SELECT purchase_date, grand_total FROM purchases WHERE type = 'Purchase' AND purchase_date >= ?", [sixMonthsAgo]);
+      for (var row in recentSpend) {
+        final date = DateTime.parse(row['purchase_date'] as String);
+        final key = DateFormat('MMM yy').format(date);
+        if (monthlyMap.containsKey(key)) {
+          monthlyMap[key]!['spend'] = (monthlyMap[key]!['spend'] ?? 0) + (row['grand_total'] as num).toDouble();
         }
       }
 
       List<Map<String, dynamic>> processedMonthly = [];
       monthlyMap.forEach((k, v) {
-        processedMonthly.add({
-          'period': k,
-          'sales': v['sales'],
-          'spend': v['spend'],
-          'profit': v['profit'],
-        });
+        processedMonthly.add({'period': k, 'sales': v['sales'], 'spend': v['spend'], 'profit': v['profit']});
       });
       _monthlyData = processedMonthly;
 
       if (mounted) {
         setState(() => _isLoading = false);
-        _animController.forward(from: 0);
       }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
@@ -182,6 +174,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   String _fmt(double n) {
+    if (!_showNumbers) return '***';
     if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
     if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
     return n.toStringAsFixed(0);
@@ -191,28 +184,19 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget build(BuildContext context) {
     final currency = PlatformSettingsService.instance.settings.currencySymbol;
 
-    if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(color: AppColors.primary),
-      );
-    }
-
-    return FadeTransition(
-      opacity: _fadeAnim,
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildTopBar(),
-            const SizedBox(height: 24),
-            _buildKpiRow(currency),
-            const SizedBox(height: 20),
-            _buildSecondRow(currency),
-            const SizedBox(height: 20),
-            _buildMainChart(),
-            const SizedBox(height: 24),
-          ],
-        ),
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildTopBar(),
+          const SizedBox(height: 24),
+          _buildKpiRow(currency),
+          const SizedBox(height: 20),
+          _buildSecondRow(currency),
+          const SizedBox(height: 20),
+          _buildMainChart(),
+          const SizedBox(height: 24),
+        ],
       ),
     );
   }
@@ -266,6 +250,24 @@ class _DashboardScreenState extends State<DashboardScreen>
               icon: Icons.receipt_long_rounded,
               color: AppColors.purple,
               onTap: () => widget.onRouteSelected(AppRoutes.invoices),
+            ),
+            const SizedBox(width: 10),
+            GestureDetector(
+              onTap: () => setState(() => _showNumbers = !_showNumbers),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Icon(
+                  _showNumbers ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                  color: AppColors.textSecondary,
+                  size: 20,
+                ),
+              ),
             ),
             const SizedBox(width: 10),
             GestureDetector(
@@ -331,8 +333,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         Expanded(
           child: _kpiCard(
             title: 'Total Revenue',
-            value: '$currency${_fmt(_totalRevenue)}',
-            subtitle: '$_totalSalesCount sales',
+            value: _showNumbers ? '$currency${_fmt(_totalRevenue)}' : '***',
+            subtitle: _showNumbers ? '$_totalSalesCount sales' : '*** sales',
             icon: Icons.trending_up_rounded,
             gradientColors: const [Color(0xFF4776E6), Color(0xFF8E54E9)],
           ),
@@ -341,9 +343,10 @@ class _DashboardScreenState extends State<DashboardScreen>
         Expanded(
           child: _kpiCard(
             title: 'Gross Profit',
-            value: '$currency${_fmt(_totalProfit)}',
-            subtitle:
-                '${_totalRevenue > 0 ? (_totalProfit / _totalRevenue * 100).toStringAsFixed(1) : 0}% margin',
+            value: _showNumbers ? '$currency${_fmt(_totalProfit)}' : '***',
+            subtitle: _showNumbers
+                ? '${_totalRevenue > 0 ? (_totalProfit / _totalRevenue * 100).toStringAsFixed(1) : 0}% margin'
+                : '***% margin',
             icon: Icons.account_balance_wallet_rounded,
             gradientColors: const [Color(0xFF11998E), Color(0xFF38EF7D)],
           ),
@@ -352,8 +355,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         Expanded(
           child: _kpiCard(
             title: 'Total Spend',
-            value: '$currency${_fmt(_totalSpend)}',
-            subtitle: '$_totalPurchasesCount purchases',
+            value: _showNumbers ? '$currency${_fmt(_totalSpend)}' : '***',
+            subtitle: _showNumbers ? '$_totalPurchasesCount purchases' : '*** purchases',
             icon: Icons.shopping_bag_rounded,
             gradientColors: const [Color(0xFFF7971E), Color(0xFFFFD200)],
           ),
@@ -362,7 +365,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         Expanded(
           child: _kpiCard(
             title: 'Total Returns',
-            value: '$currency${_fmt(_totalReturns)}',
+            value: _showNumbers ? '$currency${_fmt(_totalReturns)}' : '***',
             subtitle: 'Net impact',
             icon: Icons.replay_rounded,
             gradientColors: const [Color(0xFFEB3349), Color(0xFFF45C43)],
@@ -422,7 +425,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           ),
           const SizedBox(height: 14),
           Text(
-            value,
+            _isLoading ? '...' : value,
             style: const TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w800,
@@ -464,24 +467,27 @@ class _DashboardScreenState extends State<DashboardScreen>
             children: [
               _miniStatCard(
                 title: 'Net Balance',
-                value:
-                    '$currency${(_totalRevenue - _totalSpend).toStringAsFixed(0)}',
+                value: _showNumbers
+                    ? '$currency${(_totalRevenue - _totalSpend).toStringAsFixed(0)}'
+                    : '***',
                 icon: Icons.account_balance_rounded,
                 color: AppColors.purple,
               ),
               const SizedBox(height: 14),
               _miniStatCard(
                 title: 'Profit Margin',
-                value: '${profitRate.toStringAsFixed(1)}%',
+                value: _showNumbers ? '${profitRate.toStringAsFixed(1)}%' : '***%',
                 icon: Icons.pie_chart_rounded,
                 color: AppColors.success,
               ),
               const SizedBox(height: 14),
               _miniStatCard(
                 title: 'Avg. Sale Value',
-                value: _totalSalesCount > 0
-                    ? '$currency${(_totalRevenue / _totalSalesCount).toStringAsFixed(0)}'
-                    : '${currency}0',
+                value: _showNumbers
+                    ? (_totalSalesCount > 0
+                        ? '$currency${(_totalRevenue / _totalSalesCount).toStringAsFixed(0)}'
+                        : '${currency}0')
+                    : '***',
                 icon: Icons.bar_chart_rounded,
                 color: AppColors.info,
               ),
@@ -598,7 +604,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  value,
+                  _isLoading ? '...' : value,
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 18,
@@ -658,6 +664,18 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   // ─── Main Chart ─────────────────────────────────────────────────────────────
   Widget _buildMainChart() {
+    if (_isLoading) {
+      return Container(
+        height: 350,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: const CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
     if (_monthlyData.isEmpty) return const SizedBox();
 
     double maxY = 0;
@@ -732,7 +750,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     getTooltipItems: (spots) => spots
                         .map(
                           (s) => LineTooltipItem(
-                            _fmt(s.y),
+                            _showNumbers ? _fmt(s.y) : '***',
                             const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,

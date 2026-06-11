@@ -11,6 +11,10 @@ import 'package:ims_pos_system/services/brand_service.dart';
 import 'package:ims_pos_system/services/category_service.dart';
 import 'package:ims_pos_system/services/supplier_service.dart';
 import 'package:ims_pos_system/services/room_service.dart';
+import 'package:ims_pos_system/models/product_model.dart';
+import 'package:ims_pos_system/services/product_model_service.dart';
+import 'package:ims_pos_system/models/quality.dart';
+import 'package:ims_pos_system/services/quality_service.dart';
 import 'package:ims_pos_system/services/platform_settings_service.dart';
 import 'package:ims_pos_system/widgets/searchable_dropdown.dart';
 
@@ -35,6 +39,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
 
   final _nameController = TextEditingController();
   final _barcodeController = TextEditingController();
+  final _locationController = TextEditingController();
   final _quantityController = TextEditingController();
   final _minStockController = TextEditingController();
   final _purchasePriceController = TextEditingController();
@@ -43,14 +48,18 @@ class _EditProductScreenState extends State<EditProductScreen> {
   final _descriptionController = TextEditingController();
 
   int? _selectedBrandId;
+  int? _selectedModelId;
+  int? _selectedQualityId;
   int? _selectedCategoryId;
   int? _selectedSupplierId;
   int? _selectedRoomId;
 
   List<Brand> _brands = [];
+  List<ProductModel> _models = [];
   List<Category> _categories = [];
   List<Supplier> _suppliers = [];
   List<Room> _rooms = [];
+  List<Quality> _qualities = [];
 
   bool _isActive = true;
   bool _isLoading = true;
@@ -67,6 +76,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
   void dispose() {
     _nameController.dispose();
     _barcodeController.dispose();
+    _locationController.dispose();
     _quantityController.dispose();
     _minStockController.dispose();
     _purchasePriceController.dispose();
@@ -80,9 +90,11 @@ class _EditProductScreenState extends State<EditProductScreen> {
     setState(() => _isLoading = true);
     try {
       final brands = await BrandService.instance.getAll();
+      final models = await ProductModelService.instance.getAll();
       final categories = await CategoryService.instance.getAll();
       final suppliers = await SupplierService.instance.getAll();
       final rooms = await RoomService.instance.getActiveRooms();
+      final qualities = await QualityService.instance.getActive();
 
       Product? product = widget.initialProduct;
       product ??= await ProductService.instance.getById(widget.productId);
@@ -108,6 +120,9 @@ class _EditProductScreenState extends State<EditProductScreen> {
           _brands = brands
               .where((b) => b.isActive || b.id == loadedProduct.brandId)
               .toList();
+          _models = models
+              .where((m) => m.isActive || m.id == loadedProduct.modelId)
+              .toList();
           _categories = categories
               .where((c) => c.isActive || c.id == loadedProduct.categoryId)
               .toList();
@@ -116,6 +131,9 @@ class _EditProductScreenState extends State<EditProductScreen> {
               .toList();
           _rooms = rooms
               .where((r) => r.isActive || r.id == loadedProduct.roomId)
+              .toList();
+          _qualities = qualities
+              .where((q) => q.isActive || q.id == loadedProduct.qualityId)
               .toList();
 
           _nameController.text = loadedProduct.name;
@@ -131,9 +149,12 @@ class _EditProductScreenState extends State<EditProductScreen> {
           _descriptionController.text = loadedProduct.description ?? '';
 
           _selectedBrandId = loadedProduct.brandId;
+          _selectedModelId = loadedProduct.modelId;
           _selectedCategoryId = loadedProduct.categoryId;
           _selectedSupplierId = loadedProduct.supplierId;
           _selectedRoomId = loadedProduct.roomId;
+          _selectedQualityId = loadedProduct.qualityId;
+          _locationController.text = loadedProduct.location ?? '';
           _isActive = loadedProduct.isActive;
 
           _isLoading = false;
@@ -183,15 +204,22 @@ class _EditProductScreenState extends State<EditProductScreen> {
         ? null
         : double.tryParse(_discountPriceController.text.trim());
 
-    final updatedProduct = _product!.copyWith(
+    final updatedProduct = Product(
+      id: _product!.id,
       name: name,
+      code: _product!.code,
       barcode: _barcodeController.text.trim().isEmpty
           ? null
           : _barcodeController.text.trim(),
       brandId: _selectedBrandId,
+      modelId: _selectedModelId,
       categoryId: _selectedCategoryId,
       supplierId: _selectedSupplierId,
       roomId: _selectedRoomId,
+      qualityId: _selectedQualityId,
+      location: _locationController.text.trim().isEmpty
+          ? null
+          : _locationController.text.trim(),
       quantity: int.tryParse(_quantityController.text.trim()) ?? 0,
       minStockQuantity: int.tryParse(_minStockController.text.trim()) ?? 5,
       purchasePrice: purchasePrice,
@@ -201,6 +229,7 @@ class _EditProductScreenState extends State<EditProductScreen> {
           ? null
           : _descriptionController.text.trim(),
       isActive: _isActive,
+      createdAt: _product!.createdAt,
       updatedAt: DateTime.now(),
     );
 
@@ -321,17 +350,32 @@ class _EditProductScreenState extends State<EditProductScreen> {
                                   _buildBrandDropdown(),
                                 ),
                                 const SizedBox(height: 20),
-                                // Row 3: Room + Supplier
+                                // Row 3: Model + Room
                                 _buildResponsiveRow(
                                   isWide,
+                                  _buildModelDropdown(),
                                   _buildRoomDropdown(),
-                                  _buildSupplierDropdown(),
                                 ),
                                 const SizedBox(height: 20),
-                                // Row 4: Status
-                                _buildStatusToggle(),
+                                // Row 4: Supplier + Status
+                                _buildResponsiveRow(
+                                  isWide,
+                                  _buildSupplierDropdown(),
+                                  _buildStatusToggle(),
+                                ),
                                 const SizedBox(height: 20),
-                                // Row 4: Stock + Min Stock
+                                // Row 5: Quality + Location
+                                _buildResponsiveRow(
+                                  isWide,
+                                  _buildQualityDropdown(),
+                                  _buildField(
+                                    'Location / Shelf',
+                                    _locationController,
+                                    'e.g. Shelf A-1, Bin 3B',
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                // Row 6: Stock + Min Stock
                                 _buildResponsiveRow(
                                   isWide,
                                   _buildField(
@@ -516,7 +560,46 @@ class _EditProductScreenState extends State<EditProductScreen> {
       items: _brands
           .map((b) => SearchableDropdownItem<int>(value: b.id!, label: b.name))
           .toList(),
-      onChanged: (val) => setState(() => _selectedBrandId = val),
+      onChanged: (val) {
+        setState(() {
+          _selectedBrandId = val;
+          if (_selectedModelId != null) {
+            final selectedModel = _models.firstWhere((m) => m.id == _selectedModelId, orElse: () => _models.first);
+            if (selectedModel.brandId != val) {
+              _selectedModelId = null;
+            }
+          }
+        });
+      },
+    );
+  }
+
+  Widget _buildModelDropdown() {
+    List<ProductModel> filteredModels = _models;
+    if (_selectedBrandId != null) {
+      filteredModels = _models.where((m) => m.brandId == _selectedBrandId).toList();
+    }
+
+    return SearchableDropdown<int>(
+      label: 'Model',
+      hint: 'Search and select model...',
+      selectedValue: _selectedModelId,
+      items: filteredModels
+          .map((m) => SearchableDropdownItem<int>(value: m.id!, label: m.name))
+          .toList(),
+      onChanged: (val) => setState(() => _selectedModelId = val),
+    );
+  }
+
+  Widget _buildQualityDropdown() {
+    return SearchableDropdown<int>(
+      label: 'Quality',
+      hint: 'Search and select quality...',
+      selectedValue: _selectedQualityId,
+      items: _qualities
+          .map((q) => SearchableDropdownItem<int>(value: q.id!, label: q.name))
+          .toList(),
+      onChanged: (val) => setState(() => _selectedQualityId = val),
     );
   }
 

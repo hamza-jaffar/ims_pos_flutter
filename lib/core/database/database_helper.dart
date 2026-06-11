@@ -9,6 +9,7 @@ import 'package:ims_pos_system/core/database/tables/brand_table.dart';
 import 'package:ims_pos_system/core/database/tables/category_table.dart';
 import 'package:ims_pos_system/core/database/tables/product_table.dart';
 import 'package:ims_pos_system/core/database/tables/room_table.dart';
+import 'package:ims_pos_system/core/database/tables/quality_table.dart';
 import 'package:ims_pos_system/core/database/tables/stock_adjustment_table.dart';
 import 'package:ims_pos_system/core/database/tables/user_table.dart';
 import 'package:ims_pos_system/core/database/tables/customer_table.dart';
@@ -18,6 +19,7 @@ import 'package:ims_pos_system/core/database/tables/purchase_item_table.dart';
 import 'package:ims_pos_system/core/database/tables/sale_table.dart';
 import 'package:ims_pos_system/core/database/tables/sale_item_table.dart';
 import 'package:ims_pos_system/core/database/tables/platform_settings_table.dart';
+import 'package:ims_pos_system/core/database/tables/product_model_table.dart';
 import 'package:ims_pos_system/models/user.dart';
 
 class DatabaseHelper {
@@ -25,7 +27,7 @@ class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
 
   static const String _databaseName = 'ims_pos_system.db';
-  static const int _databaseVersion = 14;
+  static const int _databaseVersion = 20;
 
   static const String userTable = UserTable.tableName;
   static const String categoryTable = CategoryTable.tableName;
@@ -40,6 +42,8 @@ class DatabaseHelper {
   static const String purchaseItemTable = PurchaseItemTable.tableName;
   static const String saleTable = SaleTable.tableName;
   static const String saleItemTable = SaleItemTable.tableName;
+  static const String productModelTable = ProductModelTable.tableName;
+  static const String qualityTable = QualityTable.tableName;
 
   Database? _database;
 
@@ -98,6 +102,8 @@ class DatabaseHelper {
     await ProductTable.createTable(db);
     await StockAdjustmentTable.createTable(db);
     await PlatformSettingsTable.createTable(db);
+    await ProductModelTable.createTable(db);
+    await QualityTable.createTable(db);
     await CustomerTable.createTable(db);
     await PurchaseTable.createTable(db);
     await PurchaseItemTable.createTable(db);
@@ -150,6 +156,26 @@ class DatabaseHelper {
     if (oldVersion < 14) {
       await SaleTable.migrateV14(db);
     }
+    if (oldVersion < 15) {
+      await ProductModelTable.ensureTable(db);
+      await ProductTable.migrateV15(db);
+    }
+    if (oldVersion < 16) {
+      await ProductTable.migrateV16(db);
+    }
+    if (oldVersion < 17) {
+      await QualityTable.ensureTable(db);
+      await ProductTable.migrateV17(db);
+    }
+    if (oldVersion < 18) {
+      await PlatformSettingsTable.migrateV18(db);
+    }
+    if (oldVersion < 19) {
+      await SaleItemTable.migrateV19(db);
+    }
+    if (oldVersion < 20) {
+      await PurchaseItemTable.migrateV20(db);
+    }
   }
 
   Future<void> _ensureDefaultAdmin(Database db) async {
@@ -179,12 +205,20 @@ class DatabaseHelper {
     await ProductTable.ensureTable(db);
     await StockAdjustmentTable.ensureTable(db);
     await PlatformSettingsTable.ensureTable(db);
+    await ProductModelTable.ensureTable(db);
     await CustomerTable.ensureTable(db);
     await PurchaseTable.ensureTable(db);
     await PurchaseItemTable.ensureTable(db);
+    await PurchaseItemTable.migrateV20(db);
     await SaleTable.ensureTable(db);
     await SaleTable.migrateV14(db);
     await SaleItemTable.ensureTable(db);
+    await SaleItemTable.migrateV19(db);
+    await ProductModelTable.ensureTable(db);
+    await QualityTable.ensureTable(db);
+    await ProductTable.migrateV15(db);
+    await ProductTable.migrateV16(db);
+    await ProductTable.migrateV17(db);
     await _ensureDefaultAdmin(db);
   }
 

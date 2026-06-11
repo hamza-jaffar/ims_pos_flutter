@@ -33,6 +33,34 @@ class CustomerService {
     return maps.map((m) => Customer.fromMap(m)).toList();
   }
 
+  Future<List<Customer>> getPaginated({
+    int limit = 20,
+    int offset = 0,
+    String? searchQuery,
+  }) async {
+    final db = await _db.database;
+    String whereClause = '1=1';
+    List<dynamic> whereArgs = [];
+
+    if (searchQuery != null && searchQuery.trim().isNotEmpty) {
+      whereClause += ' AND (name LIKE ? OR code LIKE ? OR email LIKE ? OR phone LIKE ?)';
+      whereArgs.add('%$searchQuery%');
+      whereArgs.add('%$searchQuery%');
+      whereArgs.add('%$searchQuery%');
+      whereArgs.add('%$searchQuery%');
+    }
+
+    final maps = await db.query(
+      _table,
+      where: whereClause,
+      whereArgs: whereArgs,
+      orderBy: 'created_at DESC',
+      limit: limit,
+      offset: offset,
+    );
+    return maps.map((m) => Customer.fromMap(m)).toList();
+  }
+
   Future<Customer?> getById(int id) async {
     final db = await _db.database;
     final maps = await db.query(_table, where: 'id = ?', whereArgs: [id]);

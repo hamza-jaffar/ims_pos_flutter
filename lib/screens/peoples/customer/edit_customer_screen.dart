@@ -108,8 +108,10 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
 
     setState(() => _isSaving = true);
 
-    final updated = _customer!.copyWith(
+    final updated = Customer(
+      id: _customer!.id,
       name: _nameController.text.trim(),
+      code: _customer!.code,
       email: _emailController.text.trim().isEmpty
           ? null
           : _emailController.text.trim(),
@@ -131,7 +133,10 @@ class _EditCustomerScreenState extends State<EditCustomerScreen> {
       zipCode: _zipCodeController.text.trim().isEmpty
           ? null
           : _zipCodeController.text.trim(),
+      loyaltyPoints: _customer!.loyaltyPoints,
+      totalPurchases: _customer!.totalPurchases,
       isActive: _isActive,
+      createdAt: _customer!.createdAt,
       updatedAt: DateTime.now(),
     );
 

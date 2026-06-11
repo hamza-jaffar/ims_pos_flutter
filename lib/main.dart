@@ -1,4 +1,8 @@
 import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:desktop_multi_window/desktop_multi_window.dart';
+import 'package:printing/printing.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -29,6 +33,20 @@ void main() async {
       runApp(const POSApp());
       return;
     }
+  }
+
+  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+    final windowController = await WindowController.fromCurrentEngine();
+    windowController.setWindowMethodHandler((call) async {
+      if (call.method == 'printPdf') {
+        final bytes = call.arguments as List<dynamic>;
+        await Printing.layoutPdf(
+          onLayout: (format) async => Uint8List.fromList(bytes.cast<int>()),
+        );
+        return 'success';
+      }
+      return 'not_implemented';
+    });
   }
 
   runApp(const MyApp());

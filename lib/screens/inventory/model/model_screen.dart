@@ -1,34 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:ims_pos_system/app_routes.dart';
 import 'package:ims_pos_system/const/app_colors.dart';
-import 'package:ims_pos_system/models/customer.dart';
-import 'package:ims_pos_system/services/customer_service.dart';
+import 'package:ims_pos_system/models/product_model.dart';
+import 'package:ims_pos_system/services/product_model_service.dart';
 
-class CustomerScreen extends StatefulWidget {
+class ModelScreen extends StatefulWidget {
   final ValueChanged<String> onRouteSelected;
   final Map<String, dynamic>? args;
 
-  const CustomerScreen({super.key, required this.onRouteSelected, this.args});
+  const ModelScreen({super.key, required this.onRouteSelected, this.args});
 
   @override
-  State<CustomerScreen> createState() => _CustomerScreenState();
+  State<ModelScreen> createState() => _ModelScreenState();
 }
 
-class _CustomerScreenState extends State<CustomerScreen> {
-  List<Customer> _customers = [];
-  List<Customer> _filtered = [];
+class _ModelScreenState extends State<ModelScreen> {
+  List<ProductModel> _models = [];
+  List<ProductModel> _filtered = [];
   bool _isLoading = true;
-  bool _isLoadingMore = false;
-  bool _hasMore = true;
-  int _offset = 0;
-  final int _limit = 20;
   final Set<int> _hoveredRows = {};
   final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadCustomers();
+    _loadModels();
     _searchController.addListener(_onSearch);
   }
 
@@ -39,45 +35,23 @@ class _CustomerScreenState extends State<CustomerScreen> {
     super.dispose();
   }
 
-  Future<void> _loadCustomers({bool isLoadMore = false}) async {
-    if (!isLoadMore) {
-      setState(() {
-        _isLoading = true;
-        _offset = 0;
-        _hasMore = true;
-      });
-    } else {
-      setState(() => _isLoadingMore = true);
-    }
-
+  Future<void> _loadModels() async {
+    setState(() => _isLoading = true);
     try {
-      final data = await CustomerService.instance.getPaginated(
-        limit: _limit,
-        offset: _offset,
-        searchQuery: _searchController.text.trim(),
-      );
+      final data = await ProductModelService.instance.getAll();
       if (mounted) {
         setState(() {
-          if (isLoadMore) {
-            _customers.addAll(data);
-          } else {
-            _customers = data;
-          }
-          _filtered = _customers;
-          _hasMore = data.length == _limit;
+          _models = data;
+          _filtered = data;
           _isLoading = false;
-          _isLoadingMore = false;
         });
       }
     } catch (error) {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _isLoadingMore = false;
-        });
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load customers: $error'),
+            content: Text('Failed to load models: $error'),
             backgroundColor: AppColors.danger,
           ),
         );
@@ -86,20 +60,29 @@ class _CustomerScreenState extends State<CustomerScreen> {
   }
 
   void _onSearch() {
-    _loadCustomers();
+    final q = _searchController.text.trim().toLowerCase();
+    setState(() {
+      _filtered = q.isEmpty
+          ? _models
+          : _models.where((m) {
+              return m.name.toLowerCase().contains(q) ||
+                  (m.code?.toLowerCase().contains(q) ?? false) ||
+                  (m.brandName?.toLowerCase().contains(q) ?? false);
+            }).toList();
+    });
   }
 
-  Future<void> _deleteCustomer(Customer customer) async {
+  Future<void> _deleteModel(ProductModel model) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         title: const Text(
-          'Delete Customer',
+          'Delete Model',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         content: Text(
-          'Are you sure you want to delete "${customer.name}"? This action cannot be undone.',
+          'Are you sure you want to delete "${model.name}"? This action cannot be undone.',
         ),
         actions: [
           TextButton(
@@ -126,15 +109,15 @@ class _CustomerScreenState extends State<CustomerScreen> {
     );
 
     if (confirmed == true) {
-      await CustomerService.instance.delete(customer.id!);
+      await ProductModelService.instance.delete(model.id!);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('"${customer.name}" deleted successfully.'),
+            content: Text('"${model.name}" deleted successfully.'),
             backgroundColor: AppColors.success,
           ),
         );
-        _loadCustomers();
+        _loadModels();
       }
     }
   }
@@ -151,7 +134,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Manage Customers',
+                    'Manage Models',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -160,7 +143,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${_customers.length} customers total',
+                    '${_models.length} models total',
                     style: TextStyle(
                       fontSize: 13,
                       color: AppColors.textSecondary,
@@ -171,9 +154,9 @@ class _CustomerScreenState extends State<CustomerScreen> {
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: () =>
-                          widget.onRouteSelected(AppRoutes.createCustomer),
+                          widget.onRouteSelected(AppRoutes.createModel),
                       icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Create Customer'),
+                      label: const Text('Create Model'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
@@ -194,7 +177,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Manage Customers',
+                        'Manage Models',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -203,7 +186,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${_customers.length} customers total',
+                        '${_models.length} models total',
                         style: TextStyle(
                           fontSize: 13,
                           color: AppColors.textSecondary,
@@ -213,9 +196,9 @@ class _CustomerScreenState extends State<CustomerScreen> {
                   ),
                   ElevatedButton.icon(
                     onPressed: () =>
-                        widget.onRouteSelected(AppRoutes.createCustomer),
+                        widget.onRouteSelected(AppRoutes.createModel),
                     icon: const Icon(Icons.add, size: 18),
-                    label: const Text('Create Customer'),
+                    label: const Text('Create Model'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
@@ -238,7 +221,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
             controller: _searchController,
             style: TextStyle(fontSize: 14, color: AppColors.textMain),
             decoration: InputDecoration(
-              hintText: 'Search customers by name, code, email or phone...',
+              hintText: 'Search models by name, code or brand...',
               hintStyle: TextStyle(
                 fontSize: 13,
                 color: AppColors.textSecondary,
@@ -255,10 +238,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                         size: 18,
                         color: AppColors.textSecondary,
                       ),
-                      onPressed: () {
-                        _searchController.clear();
-                        _onSearch();
-                      },
+                      onPressed: () => _searchController.clear(),
                     )
                   : null,
               contentPadding: const EdgeInsets.symmetric(
@@ -283,7 +263,6 @@ class _CustomerScreenState extends State<CustomerScreen> {
               filled: true,
               fillColor: Colors.white,
             ),
-            onSubmitted: (_) => _onSearch(),
           ),
         ),
         const SizedBox(height: 16),
@@ -311,7 +290,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            isSearching ? Icons.search_off : Icons.people_outline,
+            isSearching ? Icons.search_off : Icons.category,
             size: 52,
             color: AppColors.textSecondary.withAlpha(100),
           ),
@@ -319,7 +298,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
           Text(
             isSearching
                 ? 'No results for "${_searchController.text}"'
-                : 'No customers yet',
+                : 'No models yet',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -330,7 +309,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
           Text(
             isSearching
                 ? 'Try a different keyword.'
-                : 'Click "Create Customer" to get started.',
+                : 'Click "Create Model" to get started.',
             style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
           ),
         ],
@@ -350,18 +329,16 @@ class _CustomerScreenState extends State<CustomerScreen> {
           ),
           child: Row(
             children: [
-              Expanded(flex: 2, child: _headerCell('Name')),
-              Expanded(flex: 1, child: _headerCell('Code')),
-              Expanded(flex: 2, child: _headerCell('Email')),
-              Expanded(flex: 1, child: _headerCell('Phone')),
-              Expanded(flex: 1, child: _headerCell('Points')),
+              Expanded(flex: 3, child: _headerCell('Name')),
+              Expanded(flex: 2, child: _headerCell('Code')),
+              Expanded(flex: 2, child: _headerCell('Brand')),
               Expanded(flex: 1, child: _headerCell('Status')),
               SizedBox(width: 80, child: _headerCell('Actions')),
             ],
           ),
         ),
         RefreshIndicator(
-          onRefresh: () => _loadCustomers(),
+          onRefresh: _loadModels,
           child: ListView.separated(
             physics: const NeverScrollableScrollPhysics(),
             shrinkWrap: true,
@@ -371,28 +348,6 @@ class _CustomerScreenState extends State<CustomerScreen> {
             itemBuilder: (_, index) => _buildRow(_filtered[index], index),
           ),
         ),
-        if (_hasMore)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: _isLoadingMore
-                ? const Center(
-                    child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  )
-                : TextButton(
-                    onPressed: () {
-                      _offset += _limit;
-                      _loadCustomers(isLoadMore: true);
-                    },
-                    child: const Text('Load More'),
-                  ),
-          ),
       ],
     );
   }
@@ -410,7 +365,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
 
   Widget _buildCardList() {
     return Column(
-      children: _filtered.map((customer) {
+      children: _filtered.map((model) {
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           shape: RoundedRectangleBorder(
@@ -418,7 +373,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
           ),
           child: ListTile(
             title: Text(
-              customer.name,
+              model.name,
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -429,22 +384,23 @@ class _CustomerScreenState extends State<CustomerScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 4),
-                if (customer.email != null)
+                Text(
+                  model.code ?? 'No code',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                if (model.brandName != null) ...[
+                  const SizedBox(height: 4),
                   Text(
-                    customer.email!,
+                    model.brandName!,
                     style: TextStyle(
                       fontSize: 13,
                       color: AppColors.textSecondary,
                     ),
                   ),
-                if (customer.phone != null)
-                  Text(
-                    customer.phone!,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+                ],
               ],
             ),
             trailing: Wrap(
@@ -455,9 +411,9 @@ class _CustomerScreenState extends State<CustomerScreen> {
                   color: AppColors.info,
                   tooltip: 'Edit',
                   onPressed: () {
-                    if (customer.id != null) {
+                    if (model.id != null) {
                       widget.onRouteSelected(
-                        '${AppRoutes.editCustomer}/${customer.id}',
+                        '${AppRoutes.editModel}/${model.id}',
                       );
                     }
                   },
@@ -466,15 +422,13 @@ class _CustomerScreenState extends State<CustomerScreen> {
                   icon: const Icon(Icons.delete_outline),
                   color: AppColors.danger,
                   tooltip: 'Delete',
-                  onPressed: () => _deleteCustomer(customer),
+                  onPressed: () => _deleteModel(model),
                 ),
               ],
             ),
             onTap: () {
-              if (customer.id != null) {
-                widget.onRouteSelected(
-                  '${AppRoutes.editCustomer}/${customer.id}',
-                );
+              if (model.id != null) {
+                widget.onRouteSelected('${AppRoutes.editModel}/${model.id}');
               }
             },
           ),
@@ -483,7 +437,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
     );
   }
 
-  Widget _buildRow(Customer customer, int index) {
+  Widget _buildRow(ProductModel model, int index) {
     final isHovered = _hoveredRows.contains(index);
     return MouseRegion(
       onEnter: (_) => setState(() => _hoveredRows.add(index)),
@@ -491,8 +445,8 @@ class _CustomerScreenState extends State<CustomerScreen> {
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
         onTap: () {
-          if (customer.id != null) {
-            widget.onRouteSelected('${AppRoutes.editCustomer}/${customer.id}');
+          if (model.id != null) {
+            widget.onRouteSelected('${AppRoutes.editModel}/${model.id}');
           }
         },
         child: AnimatedContainer(
@@ -502,9 +456,9 @@ class _CustomerScreenState extends State<CustomerScreen> {
           child: Row(
             children: [
               Expanded(
-                flex: 2,
+                flex: 3,
                 child: Text(
-                  customer.name,
+                  model.name,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -514,9 +468,9 @@ class _CustomerScreenState extends State<CustomerScreen> {
                 ),
               ),
               Expanded(
-                flex: 1,
+                flex: 2,
                 child: Text(
-                  customer.code ?? '—',
+                  model.code ?? '—',
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.textSecondary,
@@ -527,34 +481,13 @@ class _CustomerScreenState extends State<CustomerScreen> {
               Expanded(
                 flex: 2,
                 child: Text(
-                  customer.email ?? '—',
+                  model.brandName ?? '—',
                   style: TextStyle(
                     fontSize: 13,
                     color: AppColors.textSecondary,
                   ),
                   overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Expanded(
-                flex: 1,
-                child: Text(
-                  customer.phone ?? '—',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Expanded(
-                flex: 1,
-                child: Text(
-                  customer.loyaltyPoints.toString(),
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
               ),
               Expanded(
@@ -565,17 +498,17 @@ class _CustomerScreenState extends State<CustomerScreen> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: customer.isActive
+                    color: model.isActive
                         ? AppColors.successLight
                         : AppColors.border,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    customer.isActive ? 'Active' : 'Inactive',
+                    model.isActive ? 'Active' : 'Inactive',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: customer.isActive
+                      color: model.isActive
                           ? AppColors.success
                           : AppColors.textSecondary,
                     ),
@@ -593,7 +526,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                       color: AppColors.info,
                       tooltip: 'Edit',
                       onTap: () => widget.onRouteSelected(
-                        '${AppRoutes.editCustomer}/${customer.id}',
+                        '${AppRoutes.editModel}/${model.id}',
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -601,7 +534,7 @@ class _CustomerScreenState extends State<CustomerScreen> {
                       icon: Icons.delete_outline,
                       color: AppColors.danger,
                       tooltip: 'Delete',
-                      onTap: () => _deleteCustomer(customer),
+                      onTap: () => _deleteModel(model),
                     ),
                   ],
                 ),

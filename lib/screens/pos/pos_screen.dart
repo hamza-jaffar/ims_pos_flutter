@@ -10,6 +10,8 @@ import 'package:ims_pos_system/services/customer_service.dart';
 import 'package:ims_pos_system/services/platform_settings_service.dart';
 import 'package:ims_pos_system/services/product_service.dart';
 import 'package:ims_pos_system/services/sale_service.dart';
+import 'package:ims_pos_system/services/pdf_export_helper.dart';
+import 'package:ims_pos_system/screens/invoices/invoice_screen.dart';
 
 class CartItem {
   final Product product;
@@ -47,6 +49,7 @@ class _PosScreenState extends State<PosScreen>
   bool _isReturnMode = false;
   Timer? _refreshTimer;
   Timer? _searchDebounce;
+  double? _manualTotal; // override for grand total when user edits it
 
   Purchase? _selectedReturnOrder;
   List<Purchase> _recentSales = [];
@@ -238,6 +241,7 @@ class _PosScreenState extends State<PosScreen>
 
   int get _totalItems => _cart.fold(0, (sum, item) => sum + item.quantity);
   double get _grandTotal => _cart.fold(0.0, (sum, item) => sum + item.subtotal);
+  double get _effectiveTotal => _manualTotal ?? _grandTotal;
 
   int _currentReturnQuantity(int productId) {
     final matches = _cart.where((item) => item.product.id == productId);
@@ -259,7 +263,7 @@ class _PosScreenState extends State<PosScreen>
       // purchase unit cost), update the existing line to use it.
       if (unitPrice != null) existing.unitPrice = unitPrice;
       final nextQuantity = existing.quantity + quantity;
-      if (!_isReturnMode && nextQuantity > product.quantity) {
+      if (!_isReturnMode && nextQuantity > product.quantity && !PlatformSettingsService.instance.settings.continueSellingWhenStockEmpty) {
         _showSnack('Cannot add more than available stock.', AppColors.danger);
         return;
       }
@@ -273,7 +277,7 @@ class _PosScreenState extends State<PosScreen>
       return;
     }
 
-    if (!_isReturnMode && product.quantity <= 0) {
+    if (!_isReturnMode && product.quantity <= 0 && !PlatformSettingsService.instance.settings.continueSellingWhenStockEmpty) {
       _showSnack('Product is out of stock.', AppColors.danger);
       return;
     }
@@ -295,6 +299,7 @@ class _PosScreenState extends State<PosScreen>
           maxReturnQty: maxReturnQty,
         ),
       );
+      _manualTotal = null; // reset manual override when cart changes
     });
   }
 
@@ -317,7 +322,7 @@ class _PosScreenState extends State<PosScreen>
       setState(() => _cart.removeAt(index));
       return;
     }
-    if (!_isReturnMode && nextQuantity > item.product.quantity) {
+    if (!_isReturnMode && nextQuantity > item.product.quantity && !PlatformSettingsService.instance.settings.continueSellingWhenStockEmpty) {
       _showSnack('Cannot exceed available stock.', AppColors.danger);
       return;
     }
@@ -327,7 +332,10 @@ class _PosScreenState extends State<PosScreen>
       _showSnack('Cannot exceed purchased quantity.', AppColors.danger);
       return;
     }
-    setState(() => _cart[index].quantity = nextQuantity);
+    setState(() {
+      _cart[index].quantity = nextQuantity;
+      _manualTotal = null; // reset manual override when qty changes
+    });
   }
 
   Future<void> _checkout() async {
@@ -371,8 +379,8 @@ class _PosScreenState extends State<PosScreen>
         type: _transactionType,
         status: 'Completed',
         paymentStatus: 'Paid',
-        grandTotal: _grandTotal,
-        paidAmount: _grandTotal,
+        grandTotal: _effectiveTotal,
+        paidAmount: _effectiveTotal,
         dueAmount: 0.0,
         paymentMethod: _paymentMethod,
         note: _isReturnMode
@@ -383,11 +391,13 @@ class _PosScreenState extends State<PosScreen>
 
       // Both Sale and SaleReturn go through SaleService
       // SaleService handles updating invoice totals and quantities
-      await SaleService.instance.create(purchase);
+      final saleId = await SaleService.instance.create(purchase);
+      final completedSale = await SaleService.instance.getById(saleId);
       await _loadData();
       if (!mounted) return;
       setState(() {
         _cart.clear();
+        _manualTotal = null;
         _selectedCustomer = null;
         _customerType = 'walkin';
         _paymentMethod = 'Cash';
@@ -402,6 +412,15 @@ class _PosScreenState extends State<PosScreen>
             : 'Sale completed and stock updated.',
         AppColors.success,
       );
+
+      if (completedSale != null) {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (_) => InvoiceDetailSheet(sale: completedSale),
+        );
+      }
     } catch (error) {
       if (mounted) {
         _showSnack('Checkout failed: $error', AppColors.danger);
@@ -411,10 +430,135 @@ class _PosScreenState extends State<PosScreen>
     }
   }
 
+  Future<void> _showEditTotalDialog(String currency) async {
+    final controller = TextEditingController(
+      text: _effectiveTotal.toStringAsFixed(2),
+    );
+    final result = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text(
+          'Edit Grand Total',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Cart total: $currency${_grandTotal.toStringAsFixed(2)}',
+              style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Enter a custom total (e.g. apply a discount).',
+              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: controller,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Custom Total',
+                prefixText: currency,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppColors.primary),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              setState(() => _manualTotal = null);
+              Navigator.of(ctx).pop();
+            },
+            child: const Text('Reset to Cart Total',
+                style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final val = double.tryParse(controller.text.trim());
+              if (val != null && val >= 0) {
+                Navigator.of(ctx).pop(val);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() => _manualTotal = result);
+    }
+  }
+
+  Future<void> _showEditPriceDialog(CartItem item, String currency) async {
+    final controller = TextEditingController(text: item.unitPrice.toStringAsFixed(2));
+    final result = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text('Edit Unit Price', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          autofocus: true,
+          decoration: InputDecoration(
+            labelText: 'New Price',
+            prefixText: currency,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.primary),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              final val = double.tryParse(controller.text.trim());
+              if (val != null && val >= 0) {
+                Navigator.of(ctx).pop(val);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
+    );
+    
+    if (result != null && mounted) {
+      setState(() {
+        item.unitPrice = result;
+        _manualTotal = null; // reset grand total override if any
+      });
+    }
+  }
+
   // ─────────────────────────── PRODUCT CARD ────────────────────────────────
   Widget _buildProductCard(Product product) {
     final availableStock = product.quantity;
-    final isOutOfStock = !_isReturnMode && availableStock <= 0;
+    final isOutOfStock = !_isReturnMode && availableStock <= 0 && !PlatformSettingsService.instance.settings.continueSellingWhenStockEmpty;
     final currency = PlatformSettingsService.instance.settings.currencySymbol;
 
     Color stockColor = AppColors.success;
@@ -978,18 +1122,42 @@ class _PosScreenState extends State<PosScreen>
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 2),
-              Text(
-                _isReturnMode
-                    ? '$currency${item.unitPrice.toStringAsFixed(2)} × ${item.quantity} = -$currency${item.subtotal.toStringAsFixed(2)}'
-                    : '$currency${item.unitPrice.toStringAsFixed(2)} × ${item.quantity} = $currency${item.subtotal.toStringAsFixed(2)}',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: _isReturnMode
-                      ? const Color(0xFFFF6B6B)
-                      : Colors.white54,
-                  fontWeight: _isReturnMode
-                      ? FontWeight.w600
-                      : FontWeight.normal,
+              GestureDetector(
+                onTap: () => _showEditPriceDialog(item, currency),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _isReturnMode
+                          ? '$currency${item.unitPrice.toStringAsFixed(2)} × ${item.quantity} = -$currency${item.subtotal.toStringAsFixed(2)}'
+                          : '$currency${item.unitPrice.toStringAsFixed(2)} × ${item.quantity} = $currency${item.subtotal.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: _isReturnMode
+                            ? const Color(0xFFFF6B6B)
+                            : Colors.white54,
+                        fontWeight: _isReturnMode
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withAlpha(20),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.edit_rounded, size: 10, color: Colors.white70),
+                          SizedBox(width: 2),
+                          Text('Edit', style: TextStyle(fontSize: 9, color: Colors.white70)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -1032,7 +1200,10 @@ class _PosScreenState extends State<PosScreen>
         const SizedBox(width: 6),
         // Delete
         GestureDetector(
-          onTap: () => setState(() => _cart.removeAt(index)),
+          onTap: () => setState(() {
+            _cart.removeAt(index);
+            _manualTotal = null;
+          }),
           child: Container(
             width: 30,
             height: 30,
@@ -1098,21 +1269,53 @@ class _PosScreenState extends State<PosScreen>
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    _isReturnMode ? 'Refund' : 'Total',
-                    style: const TextStyle(fontSize: 11, color: Colors.white38),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _isReturnMode ? 'Refund' : 'Total',
+                        style: const TextStyle(fontSize: 11, color: Colors.white38),
+                      ),
+                      const SizedBox(width: 6),
+                      if (!_isReturnMode)
+                        GestureDetector(
+                          onTap: () => _showEditTotalDialog(currency),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withAlpha(60),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppColors.primary.withAlpha(100)),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.edit_rounded, size: 12, color: Colors.white70),
+                                SizedBox(width: 4),
+                                Text('Edit', style: TextStyle(fontSize: 11, color: Colors.white70, fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
+                  const SizedBox(height: 2),
                   Text(
-                    '${_isReturnMode ? '-' : ''}$currency${_grandTotal.toStringAsFixed(2)}',
+                    '${_isReturnMode ? '-' : ''}$currency${_effectiveTotal.toStringAsFixed(2)}',
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w900,
                       color: _isReturnMode
                           ? const Color(0xFFFF6B6B)
-                          : Colors.white,
+                          : (_manualTotal != null ? AppColors.warning : Colors.white),
                       letterSpacing: -0.5,
                     ),
                   ),
+                  if (_manualTotal != null)
+                    Text(
+                      'Original: $currency${_grandTotal.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 10, color: Colors.white38),
+                    ),
                 ],
               ),
             ],

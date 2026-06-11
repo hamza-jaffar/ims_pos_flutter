@@ -22,6 +22,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
   List<Purchase> _filtered = [];
   String _filterType = 'All'; // All | Sale | Purchase | Return
   final TextEditingController _searchCtrl = TextEditingController();
+  int _displayLimit = 20;
 
   @override
   void initState() {
@@ -75,7 +76,10 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
       return typeMatch && searchMatch;
     }).toList();
 
-    setState(() => _filtered = list);
+    setState(() {
+      _filtered = list;
+      _displayLimit = 20;
+    });
   }
 
   Future<void> _downloadPdf(Purchase purchase) async {
@@ -132,7 +136,7 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
-          builder: (_) => _InvoiceDetailSheet(sale: fullPurchase!),
+          builder: (_) => InvoiceDetailSheet(sale: fullPurchase!),
         );
       }
     } catch (e) {
@@ -242,68 +246,85 @@ class _InvoiceScreenState extends State<InvoiceScreen> {
                       ),
                     ),
                   )
-                : ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                    itemCount: _filtered.length,
-                    itemBuilder: (ctx, i) {
-                        final invoice = _filtered[i];
-                        Color typeColor = Colors.blue;
-                        if (invoice.type == 'Sale') typeColor = Colors.green;
-                        if (invoice.type.contains('Return')) typeColor = Colors.red;
+                : Column(
+                    children: [
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                        itemCount: _filtered.length > _displayLimit ? _displayLimit : _filtered.length,
+                        itemBuilder: (ctx, i) {
+                            final invoice = _filtered[i];
+                            Color typeColor = Colors.blue;
+                            if (invoice.type == 'Sale') typeColor = Colors.green;
+                            if (invoice.type.contains('Return')) typeColor = Colors.red;
 
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.border),
-                          ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                            leading: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(color: typeColor.withAlpha(30), shape: BoxShape.circle),
-                              child: Icon(Icons.receipt_long, color: typeColor),
-                            ),
-                            title: Text(invoice.referenceNo, style: const TextStyle(fontWeight: FontWeight.bold)),
-                            subtitle: Text('${invoice.type} • ${DateFormat('yyyy-MM-dd HH:mm').format(invoice.purchaseDate)}'),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '$currency${invoice.grandTotal.toStringAsFixed(2)}',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                leading: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(color: typeColor.withAlpha(30), shape: BoxShape.circle),
+                                  child: Icon(Icons.receipt_long, color: typeColor),
                                 ),
-                                const SizedBox(width: 16),
-                                PopupMenuButton<String>(
-                                  onSelected: (val) {
-                                    if (val == 'view') _viewInvoice(invoice);
-                                    if (val == 'pdf') _downloadPdf(invoice);
-                                    if (val == 'excel') _downloadExcel(invoice);
-                                  },
-                                  itemBuilder: (context) => [
-                                    const PopupMenuItem(value: 'view', child: Row(children: [Icon(Icons.visibility, color: Colors.blue, size: 20), SizedBox(width: 8), Text('View Invoice')])),
-                                    const PopupMenuItem(value: 'pdf', child: Row(children: [Icon(Icons.picture_as_pdf, color: Colors.red, size: 20), SizedBox(width: 8), Text('Download PDF')])),
-                                    const PopupMenuItem(value: 'excel', child: Row(children: [Icon(Icons.grid_on, color: Colors.green, size: 20), SizedBox(width: 8), Text('Download Excel')])),
+                                title: Text(invoice.referenceNo, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                subtitle: Text('${invoice.type} • ${DateFormat('yyyy-MM-dd HH:mm').format(invoice.purchaseDate)}'),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      '$currency${invoice.grandTotal.toStringAsFixed(2)}',
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    PopupMenuButton<String>(
+                                      onSelected: (val) {
+                                        if (val == 'view') _viewInvoice(invoice);
+                                        if (val == 'pdf') _downloadPdf(invoice);
+                                        if (val == 'print') _downloadPdf(invoice);
+                                        if (val == 'excel') _downloadExcel(invoice);
+                                      },
+                                      itemBuilder: (context) => [
+                                        const PopupMenuItem(value: 'view', child: Row(children: [Icon(Icons.visibility, color: Colors.blue, size: 20), SizedBox(width: 8), Text('View Invoice')])),
+                                        const PopupMenuItem(value: 'print', child: Row(children: [Icon(Icons.print_rounded, color: Colors.purple, size: 20), SizedBox(width: 8), Text('Print Invoice')])),
+                                        const PopupMenuItem(value: 'pdf', child: Row(children: [Icon(Icons.picture_as_pdf, color: Colors.red, size: 20), SizedBox(width: 8), Text('Download PDF')])),
+                                        const PopupMenuItem(value: 'excel', child: Row(children: [Icon(Icons.grid_on, color: Colors.green, size: 20), SizedBox(width: 8), Text('Download Excel')])),
+                                      ],
+                                      icon: const Icon(Icons.more_vert),
+                                    ),
                                   ],
-                                  icon: const Icon(Icons.more_vert),
                                 ),
-                              ],
+                              ),
+                            );
+                          },
+                        ),
+                      if (_filtered.length > _displayLimit)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          child: Center(
+                            child: TextButton.icon(
+                              onPressed: () => setState(() => _displayLimit += 20),
+                              icon: const Icon(Icons.expand_more),
+                              label: Text('Load More (${_filtered.length - _displayLimit} remaining)'),
                             ),
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                    ],
+                  ),
       ],
     );
   }
 }
 
-class _InvoiceDetailSheet extends StatelessWidget {
+class InvoiceDetailSheet extends StatelessWidget {
   final Purchase sale;
-  const _InvoiceDetailSheet({required this.sale});
+  const InvoiceDetailSheet({required this.sale});
 
   @override
   Widget build(BuildContext context) {
@@ -403,6 +424,36 @@ class _InvoiceDetailSheet extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        try {
+                          await PdfExportHelper.exportPurchaseDetail(sale);
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Print Error: $e'), backgroundColor: AppColors.danger));
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.print_rounded, size: 20),
+                      label: const Text('Print Invoice', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Center(
+                    child: Text(
+                      'Built by Degvora',
+                      style: TextStyle(fontSize: 11, color: AppColors.textSecondary, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                 ],
               ),
             ),

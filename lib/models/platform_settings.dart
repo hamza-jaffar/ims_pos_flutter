@@ -14,6 +14,7 @@ class PlatformSettings {
   final String invoicePrefix;
   final String timezone;
   final String dateFormat;
+  final bool continueSellingWhenStockEmpty;
 
   PlatformSettings({
     this.id = 1,
@@ -29,6 +30,7 @@ class PlatformSettings {
     this.invoicePrefix = 'INV-',
     this.timezone = 'UTC',
     this.dateFormat = 'dd/MM/yyyy',
+    this.continueSellingWhenStockEmpty = false,
   });
 
   Map<String, dynamic> toMap() {
@@ -46,6 +48,7 @@ class PlatformSettings {
       'invoice_prefix': invoicePrefix,
       'timezone': timezone,
       'date_format': dateFormat,
+      'continue_selling_when_stock_empty': continueSellingWhenStockEmpty ? 1 : 0,
     };
   }
 
@@ -64,6 +67,7 @@ class PlatformSettings {
       invoicePrefix: map['invoice_prefix'] as String? ?? 'INV-',
       timezone: map['timezone'] as String? ?? 'UTC',
       dateFormat: map['date_format'] as String? ?? 'dd/MM/yyyy',
+      continueSellingWhenStockEmpty: (map['continue_selling_when_stock_empty'] as int?) == 1,
     );
   }
 
@@ -81,6 +85,7 @@ class PlatformSettings {
     String? invoicePrefix,
     String? timezone,
     String? dateFormat,
+    bool? continueSellingWhenStockEmpty,
   }) {
     return PlatformSettings(
       id: id ?? this.id,
@@ -96,6 +101,7 @@ class PlatformSettings {
       invoicePrefix: invoicePrefix ?? this.invoicePrefix,
       timezone: timezone ?? this.timezone,
       dateFormat: dateFormat ?? this.dateFormat,
+      continueSellingWhenStockEmpty: continueSellingWhenStockEmpty ?? this.continueSellingWhenStockEmpty,
     );
   }
 }

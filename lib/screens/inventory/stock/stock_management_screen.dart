@@ -19,6 +19,7 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
   List<Product> _filtered = [];
   bool _isLoading = true;
   String _filterStockStatus = 'All';
+  int _displayLimit = 20;
 
   @override
   void initState() {
@@ -82,6 +83,7 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
 
         return matchesQuery && matchesStock;
       }).toList();
+      _displayLimit = 20;
     });
   }
 
@@ -146,7 +148,7 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
               DataColumn(label: Text('Status')),
               DataColumn(label: Text('Action')),
             ],
-            rows: _filtered.map((product) {
+            rows: _filtered.take(_displayLimit).map((product) {
               return DataRow(
                 cells: [
                   DataCell(Text(product.name)),
@@ -187,8 +189,9 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
 
   Widget _buildCardList() {
     return Column(
-      children: _filtered.map((product) {
-        return Container(
+      children: [
+        ..._filtered.take(_displayLimit).map((product) {
+          return Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -252,7 +255,8 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
             ],
           ),
         );
-      }).toList(),
+      }),
+      ],
     );
   }
 
@@ -555,7 +559,23 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
                     ),
                   ),
                 )
-              : (isMobile ? _buildCardList() : _buildTable()),
+              : Column(
+                  children: [
+                    isMobile ? _buildCardList() : _buildTable(),
+                    if (_filtered.length > _displayLimit)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _displayLimit += 20;
+                            });
+                          },
+                          child: const Text('Load More'),
+                        ),
+                      ),
+                  ],
+                ),
         ),
       ],
     );

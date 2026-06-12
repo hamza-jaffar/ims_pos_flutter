@@ -22,6 +22,7 @@ class ProductScreen extends StatefulWidget {
 }
 
 class _ProductScreenState extends State<ProductScreen> {
+  final TextEditingController _searchController = TextEditingController();
   List<Product> _products = [];
   List<Product> _filtered = [];
   List<Category> _categories = [];
@@ -33,31 +34,34 @@ class _ProductScreenState extends State<ProductScreen> {
   bool _hasMore = true;
   int _offset = 0;
   final int _limit = 20;
-  
-  final Set<int> _hoveredRows = {};
-
-  final TextEditingController _searchController = TextEditingController();
 
   int? _filterCategoryId;
   int? _filterBrandId;
   int? _filterRoomId;
-  String _filterStockStatus =
-      'All'; // 'All', 'In Stock', 'Low Stock', 'Out of Stock'
+  String _filterStockStatus = 'All';
+
+  final Set<int> _hoveredRows = {};
 
   @override
   void initState() {
     super.initState();
-    _loadInitialData();
+    _searchController.addListener(_applyFilters);
+    _initialize();
   }
 
   @override
   void dispose() {
+    _searchController.removeListener(_applyFilters);
     _searchController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadInitialData() async {
-    setState(() => _isLoading = true);
+  Future<void> _initialize() async {
+    await _loadFilters();
+    await _loadProducts();
+  }
+
+  Future<void> _loadFilters() async {
     try {
       final categories = await CategoryService.instance.getAll();
       final brands = await BrandService.instance.getAll();
@@ -68,19 +72,15 @@ class _ProductScreenState extends State<ProductScreen> {
           _categories = categories;
           _brands = brands;
           _rooms = rooms;
+          _filterCategoryId = ProductService.instance.lastCategoryId;
+          _filterBrandId = ProductService.instance.lastBrandId;
+          _filterRoomId = ProductService.instance.lastRoomId;
+          _filterStockStatus = ProductService.instance.lastStockStatus;
+          _searchController.text = ProductService.instance.lastSearchQuery;
         });
-        await _loadProducts();
       }
-    } catch (error) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load initial data: $error'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
-      }
+    } catch (_) {
+      // Ignore filter loading errors for now.
     }
   }
 
@@ -96,7 +96,6 @@ class _ProductScreenState extends State<ProductScreen> {
     }
 
     try {
-      final String stockStatusFilter = _filterStockStatus == 'All' ? '' : _filterStockStatus;
       final products = await ProductService.instance.getPaginated(
         limit: _limit,
         offset: _offset,
@@ -104,7 +103,7 @@ class _ProductScreenState extends State<ProductScreen> {
         categoryId: _filterCategoryId,
         brandId: _filterBrandId,
         roomId: _filterRoomId,
-        stockStatus: stockStatusFilter.isNotEmpty ? stockStatusFilter : null,
+        stockStatus: _filterStockStatus != 'All' ? _filterStockStatus : null,
       );
 
       if (mounted) {
@@ -137,6 +136,13 @@ class _ProductScreenState extends State<ProductScreen> {
   }
 
   void _applyFilters() {
+    // persist filters
+    ProductService.instance.lastSearchQuery = _searchController.text;
+    ProductService.instance.lastCategoryId = _filterCategoryId;
+    ProductService.instance.lastBrandId = _filterBrandId;
+    ProductService.instance.lastRoomId = _filterRoomId;
+    ProductService.instance.lastStockStatus = _filterStockStatus;
+
     _loadProducts();
   }
 
@@ -534,64 +540,75 @@ class _ProductScreenState extends State<ProductScreen> {
   }
 
   Widget _buildTable() {
-    return Column(
-      children: [
-        // Table header
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            border: Border(bottom: BorderSide(color: AppColors.border)),
-          ),
-          child: Row(
-            children: [
-              Expanded(flex: 1, child: _headerCell('ID')),
-              Expanded(flex: 3, child: _headerCell('Name')),
-              Expanded(flex: 2, child: _headerCell('Code')),
-              Expanded(flex: 1, child: _headerCell('Quality')),
-              Expanded(flex: 2, child: _headerCell('Cost Price')),
-              Expanded(flex: 2, child: _headerCell('Selling Price')),
-              Expanded(flex: 2, child: _headerCell('Supplier')),
-              SizedBox(width: 80, child: _headerCell('Actions')),
-            ],
-          ),
-        ),
-        // Rows
-        RefreshIndicator(
-          onRefresh: () => _loadProducts(),
-          child: ListView.separated(
-            physics: const NeverScrollableScrollPhysics(),
-            shrinkWrap: true,
-            itemCount: _filtered.length,
-            separatorBuilder: (_, _) =>
-                const Divider(height: 1, color: AppColors.border),
-            itemBuilder: (_, index) => _buildRow(_filtered[index], index),
-          ),
-        ),
-        if (_hasMore)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: _isLoadingMore
-                ? const Center(
-                    child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: AppColors.primary,
+    return SizedBox(
+      height: 500, // keep reasonable height inside parent container
+      child: RefreshIndicator(
+        onRefresh: () => _loadProducts(),
+        child: ListView.separated(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
+          itemCount: _filtered.length + 1 + (_hasMore ? 1 : 0),
+          separatorBuilder: (context, index) {
+            return const Divider(height: 1, color: AppColors.border);
+          },
+          itemBuilder: (context, index) {
+            if (index == 0) {
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  border: Border(bottom: BorderSide(color: AppColors.border)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(flex: 1, child: _headerCell('ID')),
+                    Expanded(flex: 3, child: _headerCell('Name')),
+                    Expanded(flex: 2, child: _headerCell('Code')),
+                    Expanded(flex: 1, child: _headerCell('Quality')),
+                    Expanded(flex: 1, child: _headerCell('Qty')),
+                    Expanded(flex: 2, child: _headerCell('Cost Price')),
+                    Expanded(flex: 2, child: _headerCell('Selling Price')),
+                    Expanded(flex: 2, child: _headerCell('Supplier')),
+                    SizedBox(width: 80, child: _headerCell('Actions')),
+                  ],
+                ),
+              );
+            }
+
+            final rowIndex = index - 1;
+            if (_hasMore && rowIndex == _filtered.length) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: _isLoadingMore
+                    ? const Center(
+                        child: SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      )
+                    : Center(
+                        child: TextButton(
+                          onPressed: () {
+                            _offset += _limit;
+                            _loadProducts(isLoadMore: true);
+                          },
+                          child: const Text('Load More'),
+                        ),
                       ),
-                    ),
-                  )
-                : TextButton(
-                    onPressed: () {
-                      _offset += _limit;
-                      _loadProducts(isLoadMore: true);
-                    },
-                    child: const Text('Load More'),
-                  ),
-          ),
-      ],
+              );
+            }
+
+            return _buildRow(_filtered[rowIndex], rowIndex);
+          },
+        ),
+      ),
     );
   }
 
@@ -630,7 +647,10 @@ class _ProductScreenState extends State<ProductScreen> {
                 flex: 1,
                 child: Text(
                   product.id?.toString() ?? '—',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
               // Name
@@ -652,7 +672,11 @@ class _ProductScreenState extends State<ProductScreen> {
                 flex: 2,
                 child: Text(
                   product.code,
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               // Quality
@@ -660,7 +684,23 @@ class _ProductScreenState extends State<ProductScreen> {
                 flex: 1,
                 child: Text(
                   product.qualityName ?? '—',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              // Quantity
+              Expanded(
+                flex: 1,
+                child: Text(
+                  product.quantity.toString(),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textMain,
+                  ),
                 ),
               ),
               // Cost Price
@@ -668,7 +708,11 @@ class _ProductScreenState extends State<ProductScreen> {
                 flex: 2,
                 child: Text(
                   '${PlatformSettingsService.instance.settings.currencySymbol}${product.purchasePrice.toStringAsFixed(2)}',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               // Selling Price
@@ -676,7 +720,11 @@ class _ProductScreenState extends State<ProductScreen> {
                 flex: 2,
                 child: Text(
                   '${PlatformSettingsService.instance.settings.currencySymbol}${product.sellingPrice.toStringAsFixed(2)}',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textMain, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textMain,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               // Supplier
@@ -684,7 +732,10 @@ class _ProductScreenState extends State<ProductScreen> {
                 flex: 2,
                 child: Text(
                   product.supplierName ?? '—',
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
                   softWrap: true,
                   overflow: TextOverflow.visible,
                 ),
@@ -716,105 +767,6 @@ class _ProductScreenState extends State<ProductScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildStockQuantityCell(Product product) {
-    Color badgeColor = AppColors.success;
-    Color textColor = AppColors.success;
-    Color bgColor = AppColors.successLight;
-    String label = '${product.quantity} in stock';
-
-    if (product.quantity == 0) {
-      badgeColor = AppColors.danger;
-      textColor = AppColors.danger;
-      bgColor = AppColors.dangerLight;
-      label = 'Out of Stock';
-    } else if (product.quantity <= product.minStockQuantity) {
-      badgeColor = AppColors.warning;
-      textColor = AppColors.warning;
-      bgColor = AppColors.warningLight;
-      label = '${product.quantity} (Low Stock)';
-    }
-
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: badgeColor.withAlpha(40)),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: textColor,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // _buildExpiryDateCell removed — expiry dates are not used in this system.
-
-  Widget _buildPriceCell(Product product) {
-    if (product.hasDiscount) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Row(
-            children: [
-              Text(
-                '${PlatformSettingsService.instance.settings.currencySymbol}${product.discountPrice!.toStringAsFixed(2)}',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.success,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                decoration: BoxDecoration(
-                  color: AppColors.successLight,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: const Text(
-                  'Promo',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.success,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Text(
-            '${PlatformSettingsService.instance.settings.currencySymbol}${product.sellingPrice.toStringAsFixed(2)}',
-            style: const TextStyle(
-              fontSize: 11,
-              color: AppColors.textSecondary,
-              decoration: TextDecoration.lineThrough,
-            ),
-          ),
-        ],
-      );
-    }
-
-    return Text(
-      '${PlatformSettingsService.instance.settings.currencySymbol}${product.sellingPrice.toStringAsFixed(2)}',
-      style: TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.bold,
-        color: AppColors.textMain,
       ),
     );
   }

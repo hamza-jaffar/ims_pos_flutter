@@ -1,9 +1,6 @@
 import 'dart:io';
-import 'dart:typed_data';
-
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:printing/printing.dart';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -21,30 +18,38 @@ void main() async {
 
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
     sqfliteFfiInit();
+
     databaseFactory = databaseFactoryFfi;
   }
 
   // Load platform settings before starting the app
+
   await PlatformSettingsService.instance.init();
 
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
     final windowArguments = await POSWindowLauncher.currentWindowArguments();
+
     if (POSWindowLauncher.isPosWindow(windowArguments)) {
       runApp(const POSApp());
+
       return;
     }
   }
 
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
     final windowController = await WindowController.fromCurrentEngine();
+
     windowController.setWindowMethodHandler((call) async {
       if (call.method == 'printPdf') {
         final bytes = call.arguments as List<dynamic>;
+
         await Printing.layoutPdf(
           onLayout: (format) async => Uint8List.fromList(bytes.cast<int>()),
         );
+
         return 'success';
       }
+
       return 'not_implemented';
     });
   }
@@ -59,14 +64,19 @@ class POSApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: PlatformSettingsService.instance.settings.platformName,
+
       debugShowCheckedModeBanner: false,
+
       theme: ThemeData(
         useMaterial3: true,
+
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primary,
+
           surface: AppColors.background,
         ),
       ),
+
       home: const POSWindow(),
     );
   }
@@ -79,27 +89,39 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: PlatformSettingsService.instance.settings.platformName,
+
       debugShowCheckedModeBanner: false,
+
       routes: AppRoutes.routes,
+
       onGenerateRoute: (settings) {
         final widget = AppRoutes.getContent(settings.name ?? '');
+
         if (widget != null) {
           return MaterialPageRoute(builder: (context) => widget);
         }
+
         return null;
       },
+
       theme: ThemeData(
         useMaterial3: true,
+
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primary,
+
           surface: AppColors.background,
         ),
       ),
+
       home: HomeScreen(
         user: User(
           id: null,
+
           name: 'Administrator',
+
           email: 'admin@example.com',
+
           password: 'password123',
         ),
       ),

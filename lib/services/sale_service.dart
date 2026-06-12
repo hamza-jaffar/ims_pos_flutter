@@ -162,7 +162,9 @@ class SaleService {
         // Determine stock adjustment based on sale type and status
         if (sale.type == 'Sale' && sale.status == 'Completed') {
           final allowNegative = PlatformSettingsService
-              .instance.settings.continueSellingWhenStockEmpty;
+              .instance
+              .settings
+              .continueSellingWhenStockEmpty;
 
           if (allowNegative) {
             // Toggle ON: allow selling below zero — just deduct unconditionally
@@ -180,7 +182,9 @@ class SaleService {
               [item.quantity, item.productId, item.quantity],
             );
             if (rowsAffected == 0) {
-              throw Exception('Insufficient stock or product not found for product ID: ${item.productId}');
+              throw Exception(
+                'Insufficient stock or product not found for product ID: ${item.productId}',
+              );
             }
           }
         } else if (sale.type == 'SaleReturn' && sale.status == 'Completed') {
@@ -253,7 +257,9 @@ class SaleService {
                       {
                         'quantity': remainingQty,
                         'subtotal': newSubtotal,
-                        'return_qty': (origItemRow['return_qty'] as num? ?? 0).toInt() + returnedQty,
+                        'return_qty':
+                            (origItemRow['return_qty'] as num? ?? 0).toInt() +
+                            returnedQty,
                       },
                       where: 'id = ?',
                       whereArgs: [origItemRow['id']],
@@ -288,9 +294,8 @@ class SaleService {
               }
             }
           }
-        } catch (e, stackTrace) {
-          // Log error for debugging but don't fail the transaction
-          print('Error updating original sale on return: $e\n$stackTrace');
+        } catch (e) {
+          rethrow;
         }
       }
 
@@ -373,7 +378,10 @@ class SaleService {
     // Also query purchase table for legacy sales data
     debugPrint('📊 Querying purchase table for legacy sales...');
     try {
-      String pDateWhere = dateWhere.replaceAll('s.purchase_date', 'p.purchase_date');
+      String pDateWhere = dateWhere.replaceAll(
+        's.purchase_date',
+        'p.purchase_date',
+      );
       if (filterType == 'Sale' || filterType == 'All') {
         final legacySaleMaps = await db.rawQuery(
           '''
@@ -441,6 +449,83 @@ class SaleService {
       ),
     );
 
+    // Load items for merged purchases (both new sales and legacy purchases)
+    try {
+      final ids = merged.map((m) => m.id).whereType<int>().toList();
+      if (ids.isNotEmpty) {
+        final idsStr = ids.join(',');
+
+        // Determine which ids exist in sales vs purchase table to avoid id collisions
+        final saleIdRows = await db.rawQuery(
+          'SELECT id FROM ${DatabaseHelper.saleTable} WHERE id IN ($idsStr)',
+        );
+        final saleIdSet = saleIdRows.map((r) => r['id'] as int).toSet();
+
+        final purchaseIdRows = await db.rawQuery(
+          'SELECT id FROM ${DatabaseHelper.purchaseTable} WHERE id IN ($idsStr)',
+        );
+        final purchaseIdSet = purchaseIdRows.map((r) => r['id'] as int).toSet();
+
+        final Map<int, List<PurchaseItem>> itemsByParent = {};
+
+        if (saleIdSet.isNotEmpty) {
+          final saleItemMaps = await db.rawQuery('''
+            SELECT i.*, p.name as product_name, p.code as product_code,
+                   p.quantity as current_qty
+            FROM ${DatabaseHelper.saleItemTable} i
+            LEFT JOIN ${DatabaseHelper.productTable} p ON i.product_id = p.id
+            WHERE i.sale_id IN ($idsStr)
+          ''');
+
+          for (var im in saleItemMaps) {
+            final parentId = (im['sale_id'] as int);
+            final productWithPrice = Product(
+              id: im['product_id'] as int,
+              name: im['product_name'] as String? ?? 'Unknown',
+              code: im['product_code'] as String? ?? '',
+              sellingPrice: (im['unit_cost'] as num).toDouble(),
+              quantity: (im['current_qty'] as num?)?.toInt() ?? 0,
+            );
+            final pi = PurchaseItem.fromMap(im, product: productWithPrice);
+            itemsByParent.putIfAbsent(parentId, () => []).add(pi);
+          }
+        }
+
+        if (purchaseIdSet.isNotEmpty) {
+          final purchaseItemMaps = await db.rawQuery('''
+            SELECT i.*, p.name as product_name, p.code as product_code,
+                   p.quantity as current_qty
+            FROM ${DatabaseHelper.purchaseItemTable} i
+            LEFT JOIN ${DatabaseHelper.productTable} p ON i.product_id = p.id
+            WHERE i.purchase_id IN ($idsStr)
+          ''');
+
+          for (var im in purchaseItemMaps) {
+            final parentId = (im['purchase_id'] as int);
+            final productWithPrice = Product(
+              id: im['product_id'] as int,
+              name: im['product_name'] as String? ?? 'Unknown',
+              code: im['product_code'] as String? ?? '',
+              sellingPrice: (im['unit_cost'] as num).toDouble(),
+              quantity: (im['current_qty'] as num?)?.toInt() ?? 0,
+            );
+            final pi = PurchaseItem.fromMap(im, product: productWithPrice);
+            itemsByParent.putIfAbsent(parentId, () => []).add(pi);
+          }
+        }
+
+        for (var i = 0; i < merged.length; i++) {
+          final p = merged[i];
+          final id = p.id;
+          if (id != null && itemsByParent.containsKey(id)) {
+            merged[i] = p.copyWith(items: itemsByParent[id]);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error loading sale/purchase items for history: $e');
+    }
+
     debugPrint('✅ Total unique sales: ${merged.length}');
     return merged;
   }
@@ -454,14 +539,14 @@ class SaleService {
     // For now we use the existing merged logic and paginate in memory
     // because sales data is currently split across legacy and new tables.
     final allSales = await getAllSalesHistory(filterType: filterType);
-    
+
     Iterable<Purchase> filtered = allSales;
     if (searchQuery != null && searchQuery.trim().isNotEmpty) {
       final q = searchQuery.trim().toLowerCase();
       filtered = allSales.where((s) {
         return (s.referenceNo.toLowerCase().contains(q)) ||
-               (s.supplier?.name.toLowerCase().contains(q) ?? false) ||
-               (s.note?.toLowerCase().contains(q) ?? false);
+            (s.supplier?.name.toLowerCase().contains(q) ?? false) ||
+            (s.note?.toLowerCase().contains(q) ?? false);
       });
     }
 

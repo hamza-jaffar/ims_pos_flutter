@@ -5,6 +5,13 @@ class ProductService {
   ProductService._();
   static final ProductService instance = ProductService._();
 
+  // UI state persisted across screens: last used search and filters
+  String lastSearchQuery = '';
+  int? lastCategoryId;
+  int? lastBrandId;
+  int? lastRoomId;
+  String lastStockStatus = 'All';
+
   final DatabaseHelper _db = DatabaseHelper.instance;
   static const String _table = DatabaseHelper.productTable;
 
@@ -60,7 +67,7 @@ class ProductService {
     String? stockStatus,
   }) async {
     final db = await _db.database;
-    
+
     String whereClause = '1=1';
     List<dynamic> whereArgs = [];
 
@@ -85,13 +92,15 @@ class ProductService {
       if (stockStatus == 'In Stock') {
         whereClause += ' AND p.quantity > p.min_stock_quantity';
       } else if (stockStatus == 'Low Stock') {
-        whereClause += ' AND p.quantity <= p.min_stock_quantity AND p.quantity > 0';
+        whereClause +=
+            ' AND p.quantity <= p.min_stock_quantity AND p.quantity > 0';
       } else if (stockStatus == 'Out of Stock') {
         whereClause += ' AND p.quantity = 0';
       }
     }
 
-    final sql = '''
+    final sql =
+        '''
       SELECT p.*, 
              c.name AS category_name, 
              b.name AS brand_name, 
@@ -110,7 +119,7 @@ class ProductService {
       ORDER BY p.created_at DESC
       LIMIT ? OFFSET ?
     ''';
-    
+
     whereArgs.add(limit);
     whereArgs.add(offset);
 

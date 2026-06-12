@@ -8,110 +8,123 @@ import 'package:desktop_multi_window/desktop_multi_window.dart';
 
 class PdfExportHelper {
   static Future<void> _printDocument(pw.Document pdf, String name) async {
-    final bytes = await pdf.save();
     try {
-      final windowController = await WindowController.fromCurrentEngine();
-      final allWindows = await WindowController.getAll();
-      final mainWindow = allWindows.firstWhere((w) => w.arguments.isEmpty, orElse: () => windowController);
-      if (windowController.windowId != mainWindow.windowId) {
-        await mainWindow.invokeMethod('printPdf', bytes.toList());
-        return;
-      }
-    } catch (_) {}
+      final bytes = await pdf.save();
 
-    await Printing.layoutPdf(
-      onLayout: (format) async => bytes,
-      name: name,
-    );
+      try {
+        final windowController = await WindowController.fromCurrentEngine();
+        final allWindows = await WindowController.getAll();
+        final mainWindow = allWindows.firstWhere(
+          (w) => w.arguments.isEmpty,
+          orElse: () => windowController,
+        );
+        if (windowController.windowId != mainWindow.windowId) {
+          await mainWindow.invokeMethod('printPdf', bytes.toList());
+          return;
+        }
+      } catch (e) {
+        rethrow;
+      }
+
+      await Printing.layoutPdf(onLayout: (format) async => bytes, name: name);
+    } catch (e) {
+      rethrow;
+    }
   }
 
   static Future<void> exportPurchaseList(
     String title,
     List<Purchase> purchases,
   ) async {
-    final pdf = pw.Document();
-    final dateFormat = DateFormat('yyyy-MM-dd');
-    final timeFormat = DateFormat('yyyy-MM-dd HH:mm');
+    try {
+      final pdf = pw.Document();
+      final dateFormat = DateFormat('yyyy-MM-dd');
+      final timeFormat = DateFormat('yyyy-MM-dd HH:mm');
 
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        build: (context) => [
-          // Header
-          pw.Header(
-            level: 0,
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text(
-                  title,
-                  style: pw.TextStyle(
-                    fontSize: 22,
-                    fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.blue900,
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4,
+          margin: const pw.EdgeInsets.all(32),
+          build: (context) => [
+            // Header
+            pw.Header(
+              level: 0,
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text(
+                    title,
+                    style: pw.TextStyle(
+                      fontSize: 22,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColors.blue900,
+                    ),
                   ),
-                ),
-                pw.Text(
-                  'Generated: ${timeFormat.format(DateTime.now())}',
-                  style: const pw.TextStyle(
-                    fontSize: 9,
-                    color: PdfColors.grey600,
+                  pw.Text(
+                    'Generated: ${timeFormat.format(DateTime.now())}',
+                    style: const pw.TextStyle(
+                      fontSize: 9,
+                      color: PdfColors.grey600,
+                    ),
                   ),
-                ),
+                ],
+              ),
+            ),
+            pw.SizedBox(height: 15),
+            // Table
+            pw.TableHelper.fromTextArray(
+              headers: [
+                'Date',
+                'Reference No',
+                'Supplier',
+                'Status',
+                'Payment Status',
+                'Grand Total',
               ],
+              data: purchases
+                  .map(
+                    (p) => [
+                      dateFormat.format(p.purchaseDate),
+                      p.referenceNo,
+                      p.supplier?.name ?? 'Walk-in',
+                      p.status,
+                      p.paymentStatus,
+                      p.grandTotal.toStringAsFixed(2),
+                    ],
+                  )
+                  .toList(),
+              border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
+              headerStyle: pw.TextStyle(
+                fontWeight: pw.FontWeight.bold,
+                color: PdfColors.white,
+                fontSize: 10,
+              ),
+              headerDecoration: const pw.BoxDecoration(
+                color: PdfColors.blue800,
+              ),
+              cellAlignment: pw.Alignment.centerLeft,
+              cellHeight: 22,
+              cellStyle: const pw.TextStyle(fontSize: 9),
+              columnWidths: {
+                0: const pw.FlexColumnWidth(2),
+                1: const pw.FlexColumnWidth(2.5),
+                2: const pw.FlexColumnWidth(3.5),
+                3: const pw.FlexColumnWidth(2),
+                4: const pw.FlexColumnWidth(2.5),
+                5: const pw.FlexColumnWidth(2.5),
+              },
             ),
-          ),
-          pw.SizedBox(height: 15),
-          // Table
-          pw.TableHelper.fromTextArray(
-            headers: [
-              'Date',
-              'Reference No',
-              'Supplier',
-              'Status',
-              'Payment Status',
-              'Grand Total',
-            ],
-            data: purchases
-                .map(
-                  (p) => [
-                    dateFormat.format(p.purchaseDate),
-                    p.referenceNo,
-                    p.supplier?.name ?? 'Walk-in',
-                    p.status,
-                    p.paymentStatus,
-                    p.grandTotal.toStringAsFixed(2),
-                  ],
-                )
-                .toList(),
-            border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
-            headerStyle: pw.TextStyle(
-              fontWeight: pw.FontWeight.bold,
-              color: PdfColors.white,
-              fontSize: 10,
-            ),
-            headerDecoration: const pw.BoxDecoration(color: PdfColors.blue800),
-            cellAlignment: pw.Alignment.centerLeft,
-            cellHeight: 22,
-            cellStyle: const pw.TextStyle(fontSize: 9),
-            columnWidths: {
-              0: const pw.FlexColumnWidth(2),
-              1: const pw.FlexColumnWidth(2.5),
-              2: const pw.FlexColumnWidth(3.5),
-              3: const pw.FlexColumnWidth(2),
-              4: const pw.FlexColumnWidth(2.5),
-              5: const pw.FlexColumnWidth(2.5),
-            },
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
 
-    await Printing.layoutPdf(
-      onLayout: (format) => pdf.save(),
-      name: '${title.toLowerCase().replaceAll(' ', '_')}_report.pdf',
-    );
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final pdfName =
+          '${title.toLowerCase().replaceAll(' ', '_')}_report_$timestamp.pdf';
+      await Printing.layoutPdf(onLayout: (format) => pdf.save(), name: pdfName);
+    } catch (e) {
+      rethrow;
+    }
   }
 
   static Future<void> exportPurchaseDetail(Purchase purchase) async {
@@ -390,7 +403,11 @@ class PdfExportHelper {
       ),
     );
 
-    await _printDocument(pdf, '${purchase.referenceNo.toLowerCase()}_invoice.pdf');
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    await _printDocument(
+      pdf,
+      '${purchase.referenceNo.toLowerCase()}_invoice_$timestamp.pdf',
+    );
   }
 
   static Future<void> exportSystemReport(

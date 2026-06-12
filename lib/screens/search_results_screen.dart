@@ -3,6 +3,7 @@ import 'package:ims_pos_system/app_routes.dart';
 import 'package:ims_pos_system/const/app_colors.dart';
 import 'package:ims_pos_system/models/product.dart';
 import 'package:ims_pos_system/models/purchase.dart';
+import 'package:ims_pos_system/models/purchase_item.dart';
 import 'package:ims_pos_system/services/platform_settings_service.dart';
 import 'package:ims_pos_system/services/product_service.dart';
 import 'package:ims_pos_system/services/purchase_service.dart';
@@ -64,23 +65,28 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       // 1. Search Products
       final allProducts = await ProductService.instance.getAll();
       _products = allProducts
-          .where((p) =>
-              p.name.toLowerCase().contains(q) ||
-              p.code.toLowerCase().contains(q))
+          .where(
+            (p) =>
+                p.name.toLowerCase().contains(q) ||
+                p.code.toLowerCase().contains(q),
+          )
           .toList();
 
       // 2. Search Invoices / Sales
-      final sales =
-          await SaleService.instance.getAllSalesHistory(filterType: 'All');
+      final sales = await SaleService.instance.getAllSalesHistory(
+        filterType: 'All',
+      );
       final purchases = await PurchaseService.instance.getAllByType('Purchase');
       final returns = await PurchaseService.instance.getAllByType('Return');
 
       final allInv = [...sales, ...purchases, ...returns];
       _invoices = allInv
-          .where((i) =>
-              i.referenceNo.toLowerCase().contains(q) ||
-              (i.supplier?.name.toLowerCase().contains(q) ?? false) ||
-              (i.note?.toLowerCase().contains(q) ?? false))
+          .where(
+            (i) =>
+                i.referenceNo.toLowerCase().contains(q) ||
+                (i.supplier?.name.toLowerCase().contains(q) ?? false) ||
+                (i.note?.toLowerCase().contains(q) ?? false),
+          )
           .toList();
 
       _invoices.sort((a, b) => b.purchaseDate.compareTo(a.purchaseDate));
@@ -113,15 +119,20 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
-          builder: (_) => _InvoiceDetailSheet(invoice: full!),
+          builder: (_) => _InvoiceDetailSheet(
+            invoice: full!,
+            onReturnSuccess: _performSearch,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Failed to load invoice: $e'),
-          backgroundColor: AppColors.danger,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to load invoice: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
       }
     }
   }
@@ -137,10 +148,12 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       if (full != null) await PdfExportHelper.exportPurchaseDetail(full);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('PDF export failed: $e'),
-          backgroundColor: AppColors.danger,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF export failed: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
       }
     }
   }
@@ -156,10 +169,12 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
       if (full != null) await ExcelExportHelper.exportPurchaseDetail(full);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Excel export failed: $e'),
-          backgroundColor: AppColors.danger,
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Excel export failed: $e'),
+            backgroundColor: AppColors.danger,
+          ),
+        );
       }
     }
   }
@@ -196,16 +211,19 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                       Text(
                         'Search Results for "${widget.query}"',
                         style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textMain),
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textMain,
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Found ${_products.length} products and ${_invoices.length} invoices',
                         style: const TextStyle(
-                            fontSize: 13, color: AppColors.textSecondary),
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
@@ -222,8 +240,10 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
             Padding(
               padding: const EdgeInsets.all(40),
               child: Center(
-                child: Text('An error occurred: $_error',
-                    style: const TextStyle(color: AppColors.danger)),
+                child: Text(
+                  'An error occurred: $_error',
+                  style: const TextStyle(color: AppColors.danger),
+                ),
               ),
             )
           else
@@ -233,21 +253,27 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
               padding: const EdgeInsets.all(24),
               children: [
                 if (_products.isNotEmpty) ...[
-                  const Text('Products',
-                      style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textMain)),
+                  const Text(
+                    'Products',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textMain,
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   ..._products.map((p) => _buildProductCard(p, currency)),
                   const SizedBox(height: 24),
                 ],
                 if (_invoices.isNotEmpty) ...[
-                  const Text('Invoices',
-                      style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.textMain)),
+                  const Text(
+                    'Invoices',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textMain,
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   ..._invoices.map((i) => _buildInvoiceCard(i, currency)),
                 ],
@@ -256,9 +282,12 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                     padding: EdgeInsets.only(top: 40),
                     child: Center(
                       child: Text(
-                          'No results found. Try a different search term.',
-                          style: TextStyle(
-                              color: AppColors.textSecondary, fontSize: 16)),
+                        'No results found. Try a different search term.',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 16,
+                        ),
+                      ),
                     ),
                   ),
               ],
@@ -274,9 +303,10 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -290,32 +320,45 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                   width: 50,
                   height: 50,
                   decoration: BoxDecoration(
-                      color: AppColors.primary.withAlpha(20),
-                      borderRadius: BorderRadius.circular(8)),
-                  child: const Icon(Icons.inventory_2,
-                      color: AppColors.primary),
+                    color: AppColors.primary.withAlpha(20),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.inventory_2,
+                    color: AppColors.primary,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(p.name,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: AppColors.textMain)),
-                      Text('Code: ${p.code} • Stock: ${p.quantity}',
-                          style: const TextStyle(
-                              fontSize: 12, color: AppColors.textSecondary)),
+                      Text(
+                        p.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: AppColors.textMain,
+                        ),
+                      ),
+                      Text(
+                        'Code: ${p.code} • Stock: ${p.quantity}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                Text('$currency${p.sellingPrice.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: AppColors.primary)),
+                Text(
+                  '$currency${p.sellingPrice.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: AppColors.primary,
+                  ),
+                ),
               ],
             ),
           ),
@@ -334,9 +377,10 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -350,7 +394,9 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                   width: 50,
                   height: 50,
                   decoration: BoxDecoration(
-                      color: typeColor.withAlpha(20), shape: BoxShape.circle),
+                    color: typeColor.withAlpha(20),
+                    shape: BoxShape.circle,
+                  ),
                   child: Icon(Icons.receipt_long, color: typeColor),
                 ),
                 const SizedBox(width: 16),
@@ -358,23 +404,32 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(i.referenceNo,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: AppColors.textMain)),
                       Text(
-                          '${i.type} • ${DateFormat('yyyy-MM-dd').format(i.purchaseDate)}',
-                          style: const TextStyle(
-                              fontSize: 12, color: AppColors.textSecondary)),
+                        i.referenceNo,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: AppColors.textMain,
+                        ),
+                      ),
+                      Text(
+                        '${i.type} • ${DateFormat('yyyy-MM-dd').format(i.purchaseDate)}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                Text('$currency${i.grandTotal.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: AppColors.textMain)),
+                Text(
+                  '$currency${i.grandTotal.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: AppColors.textMain,
+                  ),
+                ),
               ],
             ),
           ),
@@ -386,9 +441,127 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
 // ── Invoice Detail Bottom Sheet ────────────────────────────────────────────────
 
-class _InvoiceDetailSheet extends StatelessWidget {
+class _InvoiceDetailSheet extends StatefulWidget {
   final Purchase invoice;
-  const _InvoiceDetailSheet({required this.invoice});
+  final VoidCallback? onReturnSuccess;
+
+  const _InvoiceDetailSheet({required this.invoice, this.onReturnSuccess});
+
+  @override
+  State<_InvoiceDetailSheet> createState() => _InvoiceDetailSheetState();
+}
+
+class _InvoiceDetailSheetState extends State<_InvoiceDetailSheet> {
+  Purchase get invoice => widget.invoice;
+
+  Future<void> _promptReturnFromSearch(Purchase sale, PurchaseItem item) async {
+    final quantityController = TextEditingController(
+      text: item.quantity.toString(),
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Return Item'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Product: ${item.product?.name ?? "Product"}'),
+              const SizedBox(height: 8),
+              TextField(
+                controller: quantityController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Quantity to Return',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  final returnQty = int.tryParse(quantityController.text) ?? 0;
+                  if (returnQty <= 0 || returnQty > item.quantity) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Invalid return quantity'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+
+                  print(
+                    '🔵 Creating return for item: ${item.product?.name}, qty: $returnQty',
+                  );
+
+                  // Calculate subtotal for return
+                  final returnSubtotal = item.unitCost * returnQty;
+
+                  // Create return purchase
+                  final returnPurchase = Purchase(
+                    referenceNo:
+                        'RET-${sale.referenceNo}-${DateTime.now().millisecondsSinceEpoch}',
+                    type: 'SaleReturn',
+                    status: 'Completed',
+                    customerId: sale.customerId,
+                    purchaseDate: DateTime.now(),
+                    grandTotal: returnSubtotal,
+                    note: 'Return from invoice ${sale.referenceNo}',
+                    items: [
+                      PurchaseItem(
+                        productId: item.productId,
+                        quantity: returnQty,
+                        unitCost: item.unitCost,
+                        subtotal: returnSubtotal,
+                        product: item.product,
+                      ),
+                    ],
+                  );
+
+                  await SaleService.instance.create(returnPurchase);
+                  print('✅ Return created successfully');
+
+                  Navigator.pop(context); // Close quantity dialog
+                  Navigator.pop(context); // Close invoice detail dialog
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Returned $returnQty x ${item.product?.name}',
+                      ),
+                      backgroundColor: Colors.green,
+                      duration: const Duration(seconds: 3),
+                    ),
+                  );
+
+                  widget.onReturnSuccess?.call();
+                } catch (e, st) {
+                  print('🔴 Return error: $e');
+                  print('Stack: $st');
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Return failed: $e'),
+                      backgroundColor: Colors.red,
+                      duration: const Duration(seconds: 5),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Confirm Return'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -406,40 +579,71 @@ class _InvoiceDetailSheet extends StatelessWidget {
         child: ListView(
           controller: controller,
           children: [
-            Text('Invoice ${invoice.referenceNo}',
-                style: const TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(
+              'Invoice ${invoice.referenceNo}',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
-            Text('Date: ${DateFormat('yyyy-MM-dd HH:mm').format(invoice.purchaseDate)}'),
+            Text(
+              'Date: ${DateFormat('yyyy-MM-dd HH:mm').format(invoice.purchaseDate)}',
+            ),
             Text('Status: ${invoice.paymentStatus}'),
             const Divider(height: 32),
-            const Text('Items',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Text(
+              'Items',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 12),
-            ...invoice.items.map((item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                          child: Text(
-                              '${item.product?.name ?? "Product"} (x${item.quantity})')),
-                      Text('$currency${item.subtotal.toStringAsFixed(2)}'),
-                    ],
-                  ),
-                )),
+            ...invoice.items.map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${item.product?.name ?? "Product"} (x${item.quantity})',
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text('$currency${item.subtotal.toStringAsFixed(2)}'),
+                        if (invoice.type == 'Sale')
+                          TextButton(
+                            onPressed: () =>
+                                _promptReturnFromSearch(invoice, item),
+                            style: TextButton.styleFrom(
+                              padding: EdgeInsets.zero,
+                              minimumSize: const Size(0, 20),
+                            ),
+                            child: const Text(
+                              'Return',
+                              style: TextStyle(fontSize: 11),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
             const Divider(height: 32),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Grand Total',
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                Text('$currency${invoice.grandTotal.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary)),
+                const Text(
+                  'Grand Total',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '$currency${invoice.grandTotal.toStringAsFixed(2)}',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
+                ),
               ],
             ),
           ],

@@ -128,8 +128,10 @@ class ExcelExportHelper {
       final bytes = excel.encode();
       if (bytes == null) return;
 
+      // Generate unique filename with timestamp to avoid overwriting
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
       final fileName =
-          '${title.toLowerCase().replaceAll(' ', '_')}_export.xlsx';
+          '${title.toLowerCase().replaceAll(' ', '_')}_export_$timestamp.xlsx';
       final String? outputFile = await FilePicker.platform.saveFile(
         dialogTitle: 'Save Excel Report',
         fileName: fileName,
@@ -138,10 +140,20 @@ class ExcelExportHelper {
       );
 
       if (outputFile != null) {
-        final file = File(outputFile);
+        // Ensure .xlsx extension is appended (FilePicker may not add it on Windows)
+        String finalPath = outputFile;
+        if (!finalPath.toLowerCase().endsWith('.xlsx')) {
+          finalPath = '$outputFile.xlsx';
+        }
+        final file = File(finalPath);
         await file.writeAsBytes(bytes);
+        print('✅ Excel file saved: $finalPath (${bytes.length} bytes)');
+      } else {
+        print('ℹ️ Export cancelled by user');
       }
-    } catch (e) {
+    } catch (e, st) {
+      print('❌ Excel Export Error: $e');
+      print('Stack Trace: $st');
       rethrow;
     }
   }
@@ -353,7 +365,10 @@ class ExcelExportHelper {
     }
   }
 
-  static Future<void> exportSystemReport(String title, Map<String, dynamic> summaryData) async {
+  static Future<void> exportSystemReport(
+    String title,
+    Map<String, dynamic> summaryData,
+  ) async {
     try {
       final excel = Excel.createExcel();
       final sheetName = excel.getDefaultSheet() ?? 'Sheet1';
@@ -366,8 +381,16 @@ class ExcelExportHelper {
       final List<Map<String, dynamic>> monthlyData = summaryData['monthlyData'];
 
       // Title
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).value = TextCellValue(title);
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).value = TextCellValue('Generated on: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}');
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0))
+          .value = TextCellValue(
+        title,
+      );
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1))
+          .value = TextCellValue(
+        'Generated on: ${DateFormat('yyyy-MM-dd HH:mm').format(DateTime.now())}',
+      );
 
       final yellowStyle = CellStyle(
         backgroundColorHex: ExcelColor.fromHexString('#FFFF00'),
@@ -376,44 +399,127 @@ class ExcelExportHelper {
       );
 
       // Overview Headers
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 3)).value = TextCellValue('Metric');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 3)).cellStyle = yellowStyle;
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 3)).value = TextCellValue('Amount');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 3)).cellStyle = yellowStyle;
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 3))
+          .value = TextCellValue(
+        'Metric',
+      );
+      sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 3))
+              .cellStyle =
+          yellowStyle;
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 3))
+          .value = TextCellValue(
+        'Amount',
+      );
+      sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 3))
+              .cellStyle =
+          yellowStyle;
 
       // Overview Data
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 4)).value = TextCellValue('Total Revenue (Sales)');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 4)).value = DoubleCellValue(totalRevenue);
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 4))
+          .value = TextCellValue(
+        'Total Revenue (Sales)',
+      );
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 4))
+          .value = DoubleCellValue(
+        totalRevenue,
+      );
 
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 5)).value = TextCellValue('Total Spend (Purchases)');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 5)).value = DoubleCellValue(totalSpend);
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 5))
+          .value = TextCellValue(
+        'Total Spend (Purchases)',
+      );
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 5))
+          .value = DoubleCellValue(
+        totalSpend,
+      );
 
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 6)).value = TextCellValue('Gross Profit');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 6)).value = DoubleCellValue(totalProfit);
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 6))
+          .value = TextCellValue(
+        'Gross Profit',
+      );
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 6))
+          .value = DoubleCellValue(
+        totalProfit,
+      );
 
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 7)).value = TextCellValue('Total Returns (Sales + Purchases)');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 7)).value = DoubleCellValue(totalReturns);
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 7))
+          .value = TextCellValue(
+        'Total Returns (Sales + Purchases)',
+      );
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 7))
+          .value = DoubleCellValue(
+        totalReturns,
+      );
 
       // Monthly Data Headers
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 9)).value = TextCellValue('Monthly Performance');
-      
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 10)).value = TextCellValue('Period');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 10)).cellStyle = yellowStyle;
-      
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 10)).value = TextCellValue('Revenue');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 10)).cellStyle = yellowStyle;
-      
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 10)).value = TextCellValue('Spend');
-      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 10)).cellStyle = yellowStyle;
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 9))
+          .value = TextCellValue(
+        'Monthly Performance',
+      );
+
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 10))
+          .value = TextCellValue(
+        'Period',
+      );
+      sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 10))
+              .cellStyle =
+          yellowStyle;
+
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 10))
+          .value = TextCellValue(
+        'Revenue',
+      );
+      sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: 10))
+              .cellStyle =
+          yellowStyle;
+
+      sheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 10))
+          .value = TextCellValue(
+        'Spend',
+      );
+      sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 10))
+              .cellStyle =
+          yellowStyle;
 
       // Monthly Data
       for (var i = 0; i < monthlyData.length; i++) {
         final row = 11 + i;
         final m = monthlyData[i];
-        
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row)).value = TextCellValue(m['period'].toString());
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row)).value = DoubleCellValue(m['sales'] as double);
-        sheet.cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row)).value = DoubleCellValue(m['spend'] as double);
+
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row))
+            .value = TextCellValue(
+          m['period'].toString(),
+        );
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: row))
+            .value = DoubleCellValue(
+          m['sales'] as double,
+        );
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row))
+            .value = DoubleCellValue(
+          m['spend'] as double,
+        );
       }
 
       final bytes = excel.encode();

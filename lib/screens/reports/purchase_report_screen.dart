@@ -46,19 +46,25 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
       for (var p in purchases) {
         final key = DateFormat('MMM yy').format(p.purchaseDate);
         if (monthlyMap.containsKey(key)) {
-          monthlyMap[key]!['purchases'] = (monthlyMap[key]!['purchases'] ?? 0.0) + p.grandTotal;
+          monthlyMap[key]!['purchases'] =
+              (monthlyMap[key]!['purchases'] ?? 0.0) + p.grandTotal;
         }
       }
       for (var r in returns) {
         final key = DateFormat('MMM yy').format(r.purchaseDate);
         if (monthlyMap.containsKey(key)) {
-          monthlyMap[key]!['returns'] = (monthlyMap[key]!['returns'] ?? 0.0) + r.grandTotal;
+          monthlyMap[key]!['returns'] =
+              (monthlyMap[key]!['returns'] ?? 0.0) + r.grandTotal;
         }
       }
 
       List<Map<String, dynamic>> processedMonthly = [];
       monthlyMap.forEach((k, v) {
-        processedMonthly.add({'period': k, 'purchases': v['purchases'], 'returns': v['returns']});
+        processedMonthly.add({
+          'period': k,
+          'purchases': v['purchases'],
+          'returns': v['returns'],
+        });
       });
 
       if (mounted) {
@@ -102,7 +108,10 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
     setState(() => _isLoading = true);
     try {
       if (type == 'excel') {
-        await ExcelExportHelper.exportPurchaseList('Purchase Report', _purchases);
+        await ExcelExportHelper.exportPurchaseList(
+          'Purchase Report',
+          _purchases,
+        );
       } else if (type == 'pdf') {
         await PdfExportHelper.exportPurchaseList('Purchase Report', _purchases);
       }
@@ -183,9 +192,17 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
                     label: const Text('Export Excel'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary, width: 1.5),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      side: const BorderSide(
+                        color: AppColors.primary,
+                        width: 1.5,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -195,9 +212,17 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
                     label: const Text('Export PDF'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary, width: 1.5),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      side: const BorderSide(
+                        color: AppColors.primary,
+                        width: 1.5,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -238,7 +263,8 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
                   'Total Due',
                   '$currency${purchaseDue.toStringAsFixed(2)}',
                   Colors.orange,
-                  _countByStatus(_purchases, 'Unpaid') + _countByStatus(_purchases, 'Partial'),
+                  _countByStatus(_purchases, 'Unpaid') +
+                      _countByStatus(_purchases, 'Partial'),
                 ),
               ),
               const SizedBox(width: 16),
@@ -276,7 +302,11 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
                     children: [
                       const Text(
                         'Top Suppliers',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textMain),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textMain,
+                        ),
                       ),
                       const SizedBox(height: 20),
                       _buildTopSuppliersTable(currency),
@@ -285,10 +315,7 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
                 ),
               ),
               const SizedBox(width: 24),
-              Expanded(
-                flex: 2,
-                child: _buildPurchasesList(currency),
-              ),
+              Expanded(flex: 2, child: _buildPurchasesList(currency)),
             ],
           ),
         ],
@@ -322,7 +349,11 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
             children: [
               const Text(
                 'Purchases & Returns (Last 6 Months)',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textMain),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: AppColors.textMain,
+                ),
               ),
               Row(
                 children: [
@@ -330,7 +361,7 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
                   const SizedBox(width: 16),
                   _legendItem('Returns', Colors.red),
                 ],
-              )
+              ),
             ],
           ),
           const SizedBox(height: 32),
@@ -344,7 +375,10 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
                     getTooltipItem: (group, groupIndex, rod, rodIndex) {
                       return BarTooltipItem(
                         '${_monthlyData[group.x.toInt()]['period']}\n${rod.toY.toStringAsFixed(2)}',
-                        const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       );
                     },
                   ),
@@ -360,7 +394,10 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
                             padding: const EdgeInsets.only(top: 8.0),
                             child: Text(
                               _monthlyData[value.toInt()]['period'],
-                              style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                           );
                         }
@@ -376,18 +413,26 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
                         if (value == 0) return const Text('');
                         return Text(
                           _formatCompactNumber(value),
-                          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.textSecondary,
+                          ),
                         );
                       },
                     ),
                   ),
-                  topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                 ),
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
-                  getDrawingHorizontalLine: (value) => FlLine(color: AppColors.border, strokeWidth: 1),
+                  getDrawingHorizontalLine: (value) =>
+                      FlLine(color: AppColors.border, strokeWidth: 1),
                 ),
                 borderData: FlBorderData(show: false),
                 barGroups: List.generate(_monthlyData.length, (i) {
@@ -423,10 +468,16 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
         Container(
           width: 12,
           height: 12,
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(2)),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
         ),
         const SizedBox(width: 6),
-        Text(label, style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+        Text(
+          label,
+          style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+        ),
       ],
     );
   }
@@ -444,30 +495,45 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
         children: [
           const Text(
             'Recent Purchases',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textMain),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textMain,
+            ),
           ),
           const SizedBox(height: 12),
           _purchases.isEmpty
               ? Center(
                   child: Padding(
                     padding: const EdgeInsets.all(32),
-                    child: Text('No purchases to display', style: TextStyle(color: AppColors.textSecondary)),
+                    child: Text(
+                      'No purchases to display',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
                   ),
                 )
               : ListView.separated(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: _purchases.length.clamp(0, 50),
-                  separatorBuilder: (_, __) => Divider(color: AppColors.border),
+                  separatorBuilder: (_, _) => Divider(color: AppColors.border),
                   itemBuilder: (ctx, i) {
                     final p = _purchases[i];
                     return ListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: Text(p.referenceNo, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: Text('${p.items.length} items • ${DateFormat('yyyy-MM-dd').format(p.purchaseDate)}'),
+                      title: Text(
+                        p.referenceNo,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        '${p.items.length} items • ${DateFormat('yyyy-MM-dd').format(p.purchaseDate)}',
+                      ),
                       trailing: Text(
                         '$currency${p.grandTotal.toStringAsFixed(2)}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
                       ),
                       onTap: () => _showPurchaseItems(p, currency),
                     );
@@ -532,19 +598,36 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
             children: [
               Text(
                 title,
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
               ),
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: color.withAlpha(30), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(
+                  color: color.withAlpha(30),
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 child: Icon(Icons.trending_up, color: color, size: 18),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textMain)),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textMain,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text('$count transactions', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+          Text(
+            '$count transactions',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
         ],
       ),
     );
@@ -568,13 +651,17 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
       }
     }
 
-    final sortedSuppliers = supplierMap.values.toList()..sort((a, b) => b.$2.compareTo(a.$2));
+    final sortedSuppliers = supplierMap.values.toList()
+      ..sort((a, b) => b.$2.compareTo(a.$2));
 
     if (sortedSuppliers.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
-          child: Text('No data available', style: TextStyle(color: AppColors.textSecondary)),
+          child: Text(
+            'No data available',
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
         ),
       );
     }
@@ -589,9 +676,41 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
           ),
           child: Row(
             children: [
-              Expanded(flex: 3, child: Text('Supplier', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary))),
-              Expanded(flex: 2, child: Text('Total', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary), textAlign: TextAlign.right)),
-              Expanded(flex: 1, child: Text('Count', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary), textAlign: TextAlign.center)),
+              Expanded(
+                flex: 3,
+                child: Text(
+                  'Supplier',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  'Total',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                  textAlign: TextAlign.right,
+                ),
+              ),
+              Expanded(
+                flex: 1,
+                child: Text(
+                  'Count',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ],
           ),
         ),
@@ -599,16 +718,47 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: sortedSuppliers.length.clamp(0, 10),
-          separatorBuilder: (_, _) => Divider(height: 1, color: AppColors.border),
+          separatorBuilder: (_, _) =>
+              Divider(height: 1, color: AppColors.border),
           itemBuilder: (_, index) {
             final supplier = sortedSuppliers[index];
             return Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  Expanded(flex: 3, child: Text(supplier.$1, style: const TextStyle(fontSize: 14, color: AppColors.textMain))),
-                  Expanded(flex: 2, child: Text('$currency${supplier.$2.toStringAsFixed(2)}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textMain), textAlign: TextAlign.right)),
-                  Expanded(flex: 1, child: Text('${supplier.$3}', style: TextStyle(fontSize: 14, color: AppColors.textSecondary), textAlign: TextAlign.center)),
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      supplier.$1,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textMain,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      '$currency${supplier.$2.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textMain,
+                      ),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Text(
+                      '${supplier.$3}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 ],
               ),
             );

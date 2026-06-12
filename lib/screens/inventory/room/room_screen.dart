@@ -363,7 +363,6 @@ class _RoomScreenState extends State<RoomScreen> {
   }
 
   Widget _buildRow(Room room, int index) {
-    final isHovered = false;
     return InkWell(
       onTap: () => widget.onRouteSelected('${AppRoutes.editRoom}/${room.id}'),
       child: Container(

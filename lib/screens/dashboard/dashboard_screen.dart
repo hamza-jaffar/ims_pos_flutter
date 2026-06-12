@@ -3,10 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import 'package:ims_pos_system/app_routes.dart';
 import 'package:ims_pos_system/const/app_colors.dart';
-import 'package:ims_pos_system/models/purchase.dart';
 import 'package:ims_pos_system/services/platform_settings_service.dart';
-import 'package:ims_pos_system/services/purchase_service.dart';
-import 'package:ims_pos_system/services/sale_service.dart';
 import 'package:ims_pos_system/services/pdf_export_helper.dart';
 import 'package:ims_pos_system/core/database/database_helper.dart';
 import 'package:ims_pos_system/services/excel_export_helper.dart';
@@ -23,8 +20,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     with SingleTickerProviderStateMixin {
   bool _isLoading = true;
   bool _showNumbers = false;
-
-
 
   double _totalRevenue = 0;
   double _totalSpend = 0;
@@ -53,22 +48,41 @@ class _DashboardScreenState extends State<DashboardScreen>
       _totalSalesCount = 0;
       _totalPurchasesCount = 0;
 
-      final legacySales = await db.rawQuery("SELECT SUM(grand_total) as total, COUNT(*) as cnt FROM purchases WHERE type = 'Sale'");
-      final newSales = await db.rawQuery("SELECT SUM(grand_total) as total, COUNT(*) as cnt FROM sales WHERE type = 'Sale'");
-      _totalRevenue = ((legacySales.first['total'] as num?)?.toDouble() ?? 0) + ((newSales.first['total'] as num?)?.toDouble() ?? 0);
-      _totalSalesCount = ((legacySales.first['cnt'] as num?)?.toInt() ?? 0) + ((newSales.first['cnt'] as num?)?.toInt() ?? 0);
+      final legacySales = await db.rawQuery(
+        "SELECT SUM(grand_total) as total, COUNT(*) as cnt FROM purchases WHERE type = 'Sale'",
+      );
+      final newSales = await db.rawQuery(
+        "SELECT SUM(grand_total) as total, COUNT(*) as cnt FROM sales WHERE type = 'Sale'",
+      );
+      _totalRevenue =
+          ((legacySales.first['total'] as num?)?.toDouble() ?? 0) +
+          ((newSales.first['total'] as num?)?.toDouble() ?? 0);
+      _totalSalesCount =
+          ((legacySales.first['cnt'] as num?)?.toInt() ?? 0) +
+          ((newSales.first['cnt'] as num?)?.toInt() ?? 0);
 
-      final spendData = await db.rawQuery("SELECT SUM(grand_total) as total, COUNT(*) as cnt FROM purchases WHERE type = 'Purchase'");
+      final spendData = await db.rawQuery(
+        "SELECT SUM(grand_total) as total, COUNT(*) as cnt FROM purchases WHERE type = 'Purchase'",
+      );
       _totalSpend = (spendData.first['total'] as num?)?.toDouble() ?? 0;
       _totalPurchasesCount = (spendData.first['cnt'] as num?)?.toInt() ?? 0;
 
-      final ret1 = await db.rawQuery("SELECT SUM(grand_total) as total FROM purchases WHERE type IN ('Return', 'SaleReturn')");
-      final ret2 = await db.rawQuery("SELECT SUM(grand_total) as total FROM sales WHERE type = 'SaleReturn'");
-      _totalReturns = ((ret1.first['total'] as num?)?.toDouble() ?? 0) + ((ret2.first['total'] as num?)?.toDouble() ?? 0);
+      final ret1 = await db.rawQuery(
+        "SELECT SUM(grand_total) as total FROM purchases WHERE type IN ('Return', 'SaleReturn')",
+      );
+      final ret2 = await db.rawQuery(
+        "SELECT SUM(grand_total) as total FROM sales WHERE type = 'SaleReturn'",
+      );
+      _totalReturns =
+          ((ret1.first['total'] as num?)?.toDouble() ?? 0) +
+          ((ret2.first['total'] as num?)?.toDouble() ?? 0);
 
-      final exactCost = await db.rawQuery("SELECT SUM(cost_price * quantity) as total FROM sale_items");
+      final exactCost = await db.rawQuery(
+        "SELECT SUM(cost_price * quantity) as total FROM sale_items",
+      );
       double totalCost = (exactCost.first['total'] as num?)?.toDouble() ?? 0;
-      double legacyCost = ((legacySales.first['total'] as num?)?.toDouble() ?? 0) * 0.7;
+      double legacyCost =
+          ((legacySales.first['total'] as num?)?.toDouble() ?? 0) * 0.7;
       _totalProfit = _totalRevenue - (totalCost + legacyCost);
 
       final now = DateTime.now();
@@ -79,22 +93,39 @@ class _DashboardScreenState extends State<DashboardScreen>
         monthlyMap[key] = {'sales': 0.0, 'spend': 0.0, 'profit': 0.0};
       }
 
-      final sixMonthsAgo = DateTime(now.year, now.month - 5, 1).toIso8601String();
-      
-      final recentSales = await db.rawQuery("SELECT id, purchase_date, grand_total FROM sales WHERE type = 'Sale' AND purchase_date >= ?", [sixMonthsAgo]);
-      final recentLegacySales = await db.rawQuery("SELECT id, purchase_date, grand_total FROM purchases WHERE type = 'Sale' AND purchase_date >= ?", [sixMonthsAgo]);
-      
-      final recentCosts = await db.rawQuery("SELECT sale_id, SUM(cost_price * quantity) as total_cost FROM sale_items GROUP BY sale_id");
-      final Map<int, double> saleCosts = { for (var row in recentCosts) row['sale_id'] as int: (row['total_cost'] as num).toDouble() };
+      final sixMonthsAgo = DateTime(
+        now.year,
+        now.month - 5,
+        1,
+      ).toIso8601String();
+
+      final recentSales = await db.rawQuery(
+        "SELECT id, purchase_date, grand_total FROM sales WHERE type = 'Sale' AND purchase_date >= ?",
+        [sixMonthsAgo],
+      );
+      final recentLegacySales = await db.rawQuery(
+        "SELECT id, purchase_date, grand_total FROM purchases WHERE type = 'Sale' AND purchase_date >= ?",
+        [sixMonthsAgo],
+      );
+
+      final recentCosts = await db.rawQuery(
+        "SELECT sale_id, SUM(cost_price * quantity) as total_cost FROM sale_items GROUP BY sale_id",
+      );
+      final Map<int, double> saleCosts = {
+        for (var row in recentCosts)
+          row['sale_id'] as int: (row['total_cost'] as num).toDouble(),
+      };
 
       for (var row in recentSales) {
         final date = DateTime.parse(row['purchase_date'] as String);
         final key = DateFormat('MMM yy').format(date);
         if (monthlyMap.containsKey(key)) {
           final revenue = (row['grand_total'] as num).toDouble();
-          monthlyMap[key]!['sales'] = (monthlyMap[key]!['sales'] ?? 0) + revenue;
+          monthlyMap[key]!['sales'] =
+              (monthlyMap[key]!['sales'] ?? 0) + revenue;
           final cost = saleCosts[row['id'] as int] ?? (revenue * 0.7);
-          monthlyMap[key]!['profit'] = (monthlyMap[key]!['profit'] ?? 0) + (revenue - cost);
+          monthlyMap[key]!['profit'] =
+              (monthlyMap[key]!['profit'] ?? 0) + (revenue - cost);
         }
       }
 
@@ -103,23 +134,35 @@ class _DashboardScreenState extends State<DashboardScreen>
         final key = DateFormat('MMM yy').format(date);
         if (monthlyMap.containsKey(key)) {
           final revenue = (row['grand_total'] as num).toDouble();
-          monthlyMap[key]!['sales'] = (monthlyMap[key]!['sales'] ?? 0) + revenue;
-          monthlyMap[key]!['profit'] = (monthlyMap[key]!['profit'] ?? 0) + (revenue * 0.3);
+          monthlyMap[key]!['sales'] =
+              (monthlyMap[key]!['sales'] ?? 0) + revenue;
+          monthlyMap[key]!['profit'] =
+              (monthlyMap[key]!['profit'] ?? 0) + (revenue * 0.3);
         }
       }
 
-      final recentSpend = await db.rawQuery("SELECT purchase_date, grand_total FROM purchases WHERE type = 'Purchase' AND purchase_date >= ?", [sixMonthsAgo]);
+      final recentSpend = await db.rawQuery(
+        "SELECT purchase_date, grand_total FROM purchases WHERE type = 'Purchase' AND purchase_date >= ?",
+        [sixMonthsAgo],
+      );
       for (var row in recentSpend) {
         final date = DateTime.parse(row['purchase_date'] as String);
         final key = DateFormat('MMM yy').format(date);
         if (monthlyMap.containsKey(key)) {
-          monthlyMap[key]!['spend'] = (monthlyMap[key]!['spend'] ?? 0) + (row['grand_total'] as num).toDouble();
+          monthlyMap[key]!['spend'] =
+              (monthlyMap[key]!['spend'] ?? 0) +
+              (row['grand_total'] as num).toDouble();
         }
       }
 
       List<Map<String, dynamic>> processedMonthly = [];
       monthlyMap.forEach((k, v) {
-        processedMonthly.add({'period': k, 'sales': v['sales'], 'spend': v['spend'], 'profit': v['profit']});
+        processedMonthly.add({
+          'period': k,
+          'sales': v['sales'],
+          'spend': v['spend'],
+          'profit': v['profit'],
+        });
       });
       _monthlyData = processedMonthly;
 
@@ -263,7 +306,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                   border: Border.all(color: AppColors.border),
                 ),
                 child: Icon(
-                  _showNumbers ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                  _showNumbers
+                      ? Icons.visibility_off_rounded
+                      : Icons.visibility_rounded,
                   color: AppColors.textSecondary,
                   size: 20,
                 ),
@@ -356,7 +401,9 @@ class _DashboardScreenState extends State<DashboardScreen>
           child: _kpiCard(
             title: 'Total Spend',
             value: _showNumbers ? '$currency${_fmt(_totalSpend)}' : '***',
-            subtitle: _showNumbers ? '$_totalPurchasesCount purchases' : '*** purchases',
+            subtitle: _showNumbers
+                ? '$_totalPurchasesCount purchases'
+                : '*** purchases',
             icon: Icons.shopping_bag_rounded,
             gradientColors: const [Color(0xFFF7971E), Color(0xFFFFD200)],
           ),
@@ -476,7 +523,9 @@ class _DashboardScreenState extends State<DashboardScreen>
               const SizedBox(height: 14),
               _miniStatCard(
                 title: 'Profit Margin',
-                value: _showNumbers ? '${profitRate.toStringAsFixed(1)}%' : '***%',
+                value: _showNumbers
+                    ? '${profitRate.toStringAsFixed(1)}%'
+                    : '***%',
                 icon: Icons.pie_chart_rounded,
                 color: AppColors.success,
               ),
@@ -485,8 +534,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                 title: 'Avg. Sale Value',
                 value: _showNumbers
                     ? (_totalSalesCount > 0
-                        ? '$currency${(_totalRevenue / _totalSalesCount).toStringAsFixed(0)}'
-                        : '${currency}0')
+                          ? '$currency${(_totalRevenue / _totalSalesCount).toStringAsFixed(0)}'
+                          : '${currency}0')
                     : '***',
                 icon: Icons.bar_chart_rounded,
                 color: AppColors.info,
@@ -874,7 +923,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       dashArray: dashed ? [6, 4] : null,
       dotData: FlDotData(
         show: true,
-        getDotPainter: (_, __, ___, ____) => FlDotCirclePainter(
+        getDotPainter: (_, _, _, _) => FlDotCirclePainter(
           radius: 4,
           color: Colors.white,
           strokeWidth: 2.5,

@@ -481,8 +481,6 @@ class _SalesReportScreenState extends State<SalesReportScreen> {
             ),
             const SizedBox(height: 24),
 
-            const SizedBox(height: 24),
-
             // ── Transactions List ──────────────────────────────────────────────
             Container(
               padding: const EdgeInsets.all(24),
@@ -663,18 +661,22 @@ class _SalesReportScreenState extends State<SalesReportScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary,
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -686,17 +688,22 @@ class _SalesReportScreenState extends State<SalesReportScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textMain,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textMain,
+              ),
             ),
           ),
           const SizedBox(height: 8),
           Text(
             '$count transactions',
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 12,
               color: AppColors.textSecondary,
@@ -714,7 +721,8 @@ class _SalesReportScreenState extends State<SalesReportScreen> {
         return AlertDialog(
           title: Text('Items — ${sale.referenceNo}'),
           content: SizedBox(
-            width: 500,
+            width:
+                550, // Slightly widened to safely hold all columns side-by-side
             child: ListView.separated(
               shrinkWrap: true,
               itemCount: sale.items.length,
@@ -722,35 +730,96 @@ class _SalesReportScreenState extends State<SalesReportScreen> {
               itemBuilder: (c, i) {
                 final it = sale.items[i];
                 final itemProfit = it.subtotal - (it.costPrice * it.quantity);
-                return ListTile(
-                  title: Text(it.product?.name ?? 'Unknown'),
-                  subtitle: Text(
-                    'Qty: ${it.quantity} • Price: $currency${it.unitCost.toStringAsFixed(2)} • Cost: $currency${it.costPrice.toStringAsFixed(2)}',
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8.0,
+                    horizontal: 4.0,
                   ),
-                  trailing: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Text(
-                        '$currency${it.subtotal.toStringAsFixed(2)}',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'Profit: $currency${itemProfit.toStringAsFixed(2)}',
-                        style: const TextStyle(
-                          color: AppColors.success,
-                          fontSize: 12,
+                      // Left Column: Item Name and Details
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              it.product?.name ?? 'Unknown',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Qty: ${it.quantity} • Price: $currency${it.unitCost.toStringAsFixed(2)} • Cost: $currency${it.costPrice.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                color: Colors.grey.shade600,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      if (sale.type == 'Sale' && it.quantity > 0)
-                        TextButton(
-                          onPressed: () => _promptReturnFromReport(sale, it),
-                          style: TextButton.styleFrom(
-                            foregroundColor: AppColors.primary,
-                          ),
-                          child: const Text('Return'),
+                      const SizedBox(width: 12),
+
+                      // Right Column: Subtotal, Profit and Return Action Button
+                      Expanded(
+                        flex: 2,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '$currency${it.subtotal.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'Profit: $currency${itemProfit.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                color: AppColors.success,
+                                fontSize: 12,
+                              ),
+                            ),
+
+                            // Conditional Return Action
+                            if (sale.type == 'Sale' && it.quantity > 0) ...[
+                              const SizedBox(height: 4),
+                              SizedBox(
+                                height:
+                                    28, // Fixes button padding from blowing out height boundaries
+                                child: TextButton(
+                                  onPressed: () =>
+                                      _promptReturnFromReport(sale, it),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: AppColors.primary,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 0,
+                                    ),
+                                    minimumSize: Size
+                                        .zero, // Removes heavy default padding
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                  child: const Text(
+                                    'Return',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
+                      ),
                     ],
                   ),
                 );

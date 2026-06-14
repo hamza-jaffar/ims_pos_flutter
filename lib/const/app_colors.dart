@@ -7,13 +7,11 @@ class AppColors {
   // --- Brand / Primary Colors (Ergonomic Blue & Slate) ---
   // Replaced all orange tones with a calm, deep corporate indigo/blue
   // and a soothing slate blue-gray. Very friendly for 8-hour shifts.
-  static const Color primary = Color(
-    0xFF2563EB,
-  ); // Soft Tech Blue (Highly readable, zero eye strain)
+  static const Color primary = Color.fromARGB(255, 46, 47, 48); // Soft Tech Blue (Highly readable, zero eye strain)
   static const Color primaryLight = Color(
     0xFFEFF6FF,
   ); // Clean, airy ice-blue tint
-  static const Color primaryDark = Color(0xFF1D4ED8);
+  static const Color primaryDark = Color.fromARGB(255, 8, 21, 56);
 
   // --- Neutral & Grays Scale (Anti-Glare Palette) ---
   static const Color textMain = Color(

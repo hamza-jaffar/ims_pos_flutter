@@ -91,7 +91,7 @@ class _MainLayoutState extends State<MainLayout> {
         children: [
           if (isDesktop)
             SizedBox(
-              width: 240,
+              width: 210,
               child: AppSidebar(
                 scaffoldKey: _scaffoldKey,
                 isDesktop: isDesktop,

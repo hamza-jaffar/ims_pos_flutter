@@ -10,7 +10,6 @@ import 'package:ims_pos_system/services/customer_service.dart';
 import 'package:ims_pos_system/services/platform_settings_service.dart';
 import 'package:ims_pos_system/services/product_service.dart';
 import 'package:ims_pos_system/services/sale_service.dart';
-import 'package:ims_pos_system/services/pdf_export_helper.dart';
 import 'package:ims_pos_system/screens/invoices/invoice_screen.dart';
 
 class CartItem {

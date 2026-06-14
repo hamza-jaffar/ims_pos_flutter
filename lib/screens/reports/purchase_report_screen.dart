@@ -555,7 +555,7 @@ class _PurchaseReportScreenState extends State<PurchaseReportScreen> {
             child: ListView.separated(
               shrinkWrap: true,
               itemCount: purchase.items.length,
-              separatorBuilder: (_, __) => const Divider(),
+              separatorBuilder: (_, _) => const Divider(),
               itemBuilder: (c, i) {
                 final it = purchase.items[i];
                 return ListTile(

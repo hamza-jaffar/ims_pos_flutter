@@ -542,72 +542,76 @@ class _ProductScreenState extends State<ProductScreen> {
   Widget _buildTable() {
     return SizedBox(
       height: 500, // keep reasonable height inside parent container
-      child: RefreshIndicator(
-        onRefresh: () => _loadProducts(),
-        child: ListView.separated(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.zero,
-          itemCount: _filtered.length + 1 + (_hasMore ? 1 : 0),
-          separatorBuilder: (context, index) {
-            return const Divider(height: 1, color: AppColors.border);
-          },
-          itemBuilder: (context, index) {
-            if (index == 0) {
-              return Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.background,
-                  border: Border(bottom: BorderSide(color: AppColors.border)),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(flex: 1, child: _headerCell('ID')),
-                    Expanded(flex: 3, child: _headerCell('Name')),
-                    Expanded(flex: 2, child: _headerCell('Code')),
-                    Expanded(flex: 1, child: _headerCell('Quality')),
-                    Expanded(flex: 1, child: _headerCell('Qty')),
-                    Expanded(flex: 2, child: _headerCell('Cost Price')),
-                    Expanded(flex: 2, child: _headerCell('Selling Price')),
-                    Expanded(flex: 2, child: _headerCell('Supplier')),
-                    SizedBox(width: 80, child: _headerCell('Actions')),
-                  ],
-                ),
-              );
-            }
+      child: Column(
+        children: [
+          // Sticky Header
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 12,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              border: Border(bottom: BorderSide(color: AppColors.border)),
+            ),
+            child: Row(
+              children: [
+                Expanded(flex: 1, child: _headerCell('ID')),
+                Expanded(flex: 3, child: _headerCell('Name')),
+                Expanded(flex: 2, child: _headerCell('Code')),
+                Expanded(flex: 1, child: _headerCell('Quality')),
+                Expanded(flex: 1, child: _headerCell('Qty')),
+                Expanded(flex: 2, child: _headerCell('Cost Price')),
+                Expanded(flex: 2, child: _headerCell('Selling Price')),
+                Expanded(flex: 2, child: _headerCell('Supplier')),
+                SizedBox(width: 80, child: _headerCell('Actions')),
+              ],
+            ),
+          ),
+          // Scrollable Rows
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => _loadProducts(),
+              child: ListView.separated(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.zero,
+                itemCount: _filtered.length + (_hasMore ? 1 : 0),
+                separatorBuilder: (context, index) {
+                  return const Divider(height: 1, color: AppColors.border);
+                },
+                itemBuilder: (context, index) {
+                  if (_hasMore && index == _filtered.length) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: _isLoadingMore
+                          ? const Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            )
+                          : Center(
+                              child: TextButton(
+                                onPressed: () {
+                                  _offset += _limit;
+                                  _loadProducts(isLoadMore: true);
+                                },
+                                child: const Text('Load More'),
+                              ),
+                            ),
+                    );
+                  }
 
-            final rowIndex = index - 1;
-            if (_hasMore && rowIndex == _filtered.length) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: _isLoadingMore
-                    ? const Center(
-                        child: SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      )
-                    : Center(
-                        child: TextButton(
-                          onPressed: () {
-                            _offset += _limit;
-                            _loadProducts(isLoadMore: true);
-                          },
-                          child: const Text('Load More'),
-                        ),
-                      ),
-              );
-            }
-
-            return _buildRow(_filtered[rowIndex], rowIndex);
-          },
-        ),
+                  return _buildRow(_filtered[index], index);
+                },
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

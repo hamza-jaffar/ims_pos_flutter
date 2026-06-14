@@ -26,11 +26,12 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   Future<void> _loadUsers() async {
     setState(() => _isLoading = true);
     final users = await UserService.instance.getAllUsers();
-    if (mounted)
+    if (mounted) {
       setState(() {
         _users = users;
         _isLoading = false;
       });
+    }
   }
 
   List<User> get _filtered {
@@ -112,8 +113,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       onPressed: () => setDState(() => obscure = !obscure),
                     ),
                     validator: (v) {
-                      if (v == null || v.isEmpty)
+                      if (v == null || v.isEmpty) {
                         return 'Password is required.';
+                      }
                       if (v.length < 6) return 'Min 6 characters.';
                       return null;
                     },
@@ -257,8 +259,9 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                       onPressed: () => setDState(() => obscure = !obscure),
                     ),
                     validator: (v) {
-                      if (v == null || v.isEmpty)
+                      if (v == null || v.isEmpty) {
                         return 'Password is required.';
+                      }
                       if (v.length < 6) return 'Min 6 characters.';
                       return null;
                     },

@@ -72,9 +72,17 @@ class ProductService {
     List<dynamic> whereArgs = [];
 
     if (searchQuery != null && searchQuery.trim().isNotEmpty) {
-      whereClause += ' AND (LOWER(p.name) LIKE ? OR LOWER(p.code) LIKE ?)';
-      whereArgs.add('%${searchQuery.toLowerCase()}%');
-      whereArgs.add('%${searchQuery.toLowerCase()}%');
+      final searchTerms = searchQuery.trim().toLowerCase().split(' ');
+      
+      // ALL search terms must match (AND logic) within product fields
+      for (var term in searchTerms) {
+        if (term.isNotEmpty) {
+          whereClause += 
+            ' AND (LOWER(p.name) LIKE ? OR LOWER(p.code) LIKE ?)';
+          whereArgs.add('%$term%');
+          whereArgs.add('%$term%');
+        }
+      }
     }
     if (categoryId != null) {
       whereClause += ' AND p.category_id = ?';
@@ -153,7 +161,49 @@ class ProductService {
 
   Future<List<Product>> search(String query) async {
     final db = await _db.database;
-    const sql = '''
+    
+    // Split search query into individual terms
+    final searchTerms = query.trim().toLowerCase().split(' ').where((t) => t.isNotEmpty).toList();
+    
+    if (searchTerms.isEmpty) {
+      return [];
+    }
+
+    // ALL search terms must match (AND logic)
+    // Build a condition for each term that checks if it exists in ANY field
+    final whereConditions = <String>[];
+    final whereArgs = <dynamic>[];
+
+    for (var term in searchTerms) {
+      whereConditions.add(
+        '''(LOWER(p.name) LIKE ? 
+          OR LOWER(p.code) LIKE ? 
+          OR LOWER(p.barcode) LIKE ?
+          OR LOWER(c.name) LIKE ? 
+          OR LOWER(b.name) LIKE ? 
+          OR LOWER(s.name) LIKE ?
+          OR LOWER(r.name) LIKE ?
+          OR LOWER(m.name) LIKE ?
+          OR LOWER(m.code) LIKE ?
+          OR LOWER(q.name) LIKE ?)'''
+      );
+      
+      final searchVal = '%$term%';
+      whereArgs.addAll([
+        searchVal,
+        searchVal,
+        searchVal,
+        searchVal,
+        searchVal,
+        searchVal,
+        searchVal,
+        searchVal,
+        searchVal,
+        searchVal,
+      ]);
+    }
+
+    final sql = '''
       SELECT p.*, 
              c.name AS category_name, 
              b.name AS brand_name, 
@@ -169,33 +219,11 @@ class ProductService {
       LEFT JOIN product_models m ON p.model_id = m.id
       LEFT JOIN qualities q ON p.quality_id = q.id
       WHERE p.is_active = 1
-        AND (
-          LOWER(p.name) LIKE ? 
-          OR LOWER(p.code) LIKE ? 
-          OR LOWER(p.barcode) LIKE ?
-          OR LOWER(c.name) LIKE ? 
-          OR LOWER(b.name) LIKE ? 
-          OR LOWER(s.name) LIKE ?
-          OR LOWER(r.name) LIKE ?
-          OR LOWER(m.name) LIKE ?
-          OR LOWER(m.code) LIKE ?
-          OR LOWER(q.name) LIKE ?
-        )
+        AND ${whereConditions.join(" AND ")}
       ORDER BY p.name ASC
     ''';
-    final searchVal = '%${query.toLowerCase()}%';
-    final maps = await db.rawQuery(sql, [
-      searchVal,
-      searchVal,
-      searchVal,
-      searchVal,
-      searchVal,
-      searchVal,
-      searchVal,
-      searchVal,
-      searchVal,
-      searchVal,
-    ]);
+    
+    final maps = await db.rawQuery(sql, whereArgs);
     return maps.map((m) => Product.fromMap(m)).toList();
   }
 

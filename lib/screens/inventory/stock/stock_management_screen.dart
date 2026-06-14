@@ -62,15 +62,29 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
 
   void _applyFilters() {
     final query = _searchController.text.trim().toLowerCase();
+    final searchTerms = query.split(' ').where((t) => t.isNotEmpty).toList();
+    
     setState(() {
       _filtered = _products.where((p) {
-        final matchesQuery =
-            query.isEmpty ||
-            p.name.toLowerCase().contains(query) ||
-            p.code.toLowerCase().contains(query) ||
-            (p.categoryName?.toLowerCase().contains(query) ?? false) ||
-            (p.brandName?.toLowerCase().contains(query) ?? false) ||
-            (p.roomName?.toLowerCase().contains(query) ?? false);
+        // ALL search terms must be found (AND logic)
+        bool matchesQuery = query.isEmpty;
+        
+        if (!matchesQuery && searchTerms.isNotEmpty) {
+          matchesQuery = true; // Start as true, set to false if any term doesn't match
+          for (var term in searchTerms) {
+            final termFound = 
+              p.name.toLowerCase().contains(term) ||
+              p.code.toLowerCase().contains(term) ||
+              (p.categoryName?.toLowerCase().contains(term) ?? false) ||
+              (p.brandName?.toLowerCase().contains(term) ?? false) ||
+              (p.roomName?.toLowerCase().contains(term) ?? false);
+            
+            if (!termFound) {
+              matchesQuery = false; // If any term is not found, exclude this product
+              break;
+            }
+          }
+        }
 
         var matchesStock = true;
         if (_filterStockStatus == 'In Stock') {

@@ -440,7 +440,7 @@ class _GeneralTabState extends State<_GeneralTab> {
               ),
               value: _continueSelling,
               onChanged: (v) => setState(() => _continueSelling = v),
-              activeColor: AppColors.primary,
+              activeThumbColor: AppColors.primary,
               contentPadding: EdgeInsets.zero,
             ),
             const SizedBox(height: 32),

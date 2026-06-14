@@ -8,8 +8,6 @@ import 'package:ims_pos_system/services/platform_settings_service.dart';
 import 'package:ims_pos_system/services/product_service.dart';
 import 'package:ims_pos_system/services/purchase_service.dart';
 import 'package:ims_pos_system/services/sale_service.dart';
-import 'package:ims_pos_system/services/pdf_export_helper.dart';
-import 'package:ims_pos_system/services/excel_export_helper.dart';
 import 'package:intl/intl.dart';
 
 class SearchResultsScreen extends StatefulWidget {
@@ -130,48 +128,6 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Failed to load invoice: $e'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _downloadPdf(Purchase invoice) async {
-    try {
-      Purchase? full;
-      if (invoice.type == 'Sale' || invoice.type == 'SaleReturn') {
-        full = await SaleService.instance.getById(invoice.id!);
-      } else {
-        full = await PurchaseService.instance.getById(invoice.id!);
-      }
-      if (full != null) await PdfExportHelper.exportPurchaseDetail(full);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('PDF export failed: $e'),
-            backgroundColor: AppColors.danger,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _downloadExcel(Purchase invoice) async {
-    try {
-      Purchase? full;
-      if (invoice.type == 'Sale' || invoice.type == 'SaleReturn') {
-        full = await SaleService.instance.getById(invoice.id!);
-      } else {
-        full = await PurchaseService.instance.getById(invoice.id!);
-      }
-      if (full != null) await ExcelExportHelper.exportPurchaseDetail(full);
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Excel export failed: $e'),
             backgroundColor: AppColors.danger,
           ),
         );
@@ -498,10 +454,6 @@ class _InvoiceDetailSheetState extends State<_InvoiceDetailSheet> {
                     return;
                   }
 
-                  print(
-                    '🔵 Creating return for item: ${item.product?.name}, qty: $returnQty',
-                  );
-
                   // Calculate subtotal for return
                   final returnSubtotal = item.unitCost * returnQty;
 
@@ -527,10 +479,6 @@ class _InvoiceDetailSheetState extends State<_InvoiceDetailSheet> {
                   );
 
                   await SaleService.instance.create(returnPurchase);
-                  print('✅ Return created successfully');
-
-                  Navigator.pop(context); // Close quantity dialog
-                  Navigator.pop(context); // Close invoice detail dialog
 
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -543,9 +491,7 @@ class _InvoiceDetailSheetState extends State<_InvoiceDetailSheet> {
                   );
 
                   widget.onReturnSuccess?.call();
-                } catch (e, st) {
-                  print('🔴 Return error: $e');
-                  print('Stack: $st');
+                } catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Return failed: $e'),
